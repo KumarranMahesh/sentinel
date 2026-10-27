@@ -256,3 +256,36 @@ evidence are collected in `reports/final_audit_report.md`.
 - Figures regenerated; slides rebuilt and rendered: removed "three detectors", "log10 3", "laptop CPU"; held-out stat labelled partial nested; slide 8 held-out column = θ-LOCO for every method.
 - Tests 57 passed. Clean environment (git archive → fresh venv → requirements → archive install): 57 passed; predictions and events.jsonl byte-identical to the project's.
 - Decision: submit `configs/final.yaml`; no claim of beating the reported competitor 0.71 (metric unknown, not comparable).
+
+## v3 (2026-10-27, afternoon): score column, runtime, validation protocol, new detectors
+
+**L-0048** · 2026-10-27T16:00+05:30 · Claude Opus 5.5 · DECISION · v3 adoption rule (fixed before any v3 experiment)
+- Context: research/IDEAS.md and a review the same day proposed new detectors; the team asked to implement them in order (score column, runtime, validation, detectors, neural channel).
+- Rule (`src/sentinel/validation.py` docstring): a candidate replaces the current config only if (a) its θ-LOCO ET (θ and any candidate knob chosen on 6 categories, scored on the 7th) and (b) its within-file time-split ET (each file split at the middle of its scored part; knobs chosen on the early halves, scored on the late halves) are both strictly higher than the current family's under the same protocol and θ grid, and (c) the in-sample paired file bootstrap mean is > 0. No starter pack or official evaluator exists (searched the team's mail and Drive: nothing), so NAB windows and ET stay the target.
+
+**L-0049** · 2026-10-27T16:03+05:30 · Claude Opus 5.5 · CODE · output.score: alert
+- Files: `src/sentinel/pipeline.py`, `configs/default.yaml` (`output.score`), `results/nab_crosscheck.json`.
+- `anomaly_score` is now 0.5 + 0.5·(1 − 10^−Ū) on ANOMALOUS rows and 0.5·(1 − 10^−Ū) elsewhere (`surprise` column unchanged). Thresholding the score at 0.5 gives exactly the labels; lower thresholds add candidates in surprise order.
+- Why: an evaluator that sweeps a threshold over the score column (NAB's own protocol) scored the v2 column 0.0 (best = never alert).
+- Result: NAB's own sweep on the score column 0.0 → **38.8** (= the label-based score). Labels unchanged; 57 tests pass. Config hash of final.yaml changes (7b89e5c198 → d5eb35f798) because `output` was added.
+
+**L-0050** · 2026-10-27T16:06+05:30 · Claude Opus 5.5 · PERF · calibration tail count O(log n)
+- Files: `src/sentinel/calibration.py`. A SortedList mirrors the ring buffer; `count(v >= s)` becomes a bisect.
+- Result: predictions and events.jsonl byte-identical; 39.6 → 35.3 µs/point on this container (machine slower than the 23 µs audit run). Pure-Python overhead dominates → compiled engine (L-0053).
+
+**L-0051** · 2026-10-27T16:08+05:30 · Claude Opus 5.5 · CODE · validation harness
+- Files: `src/sentinel/validation.py` (new), `scripts/validate.py` (new), `tests/test_validation.py` (new), `src/sentinel/search.py` (cache hash excludes validation.py).
+- Trigger rows per config cached in `experiments/cache_v3/` (same key scheme as search.py). Reproduces θ-LOCO 0.479 of the final config; new number: time-split late ET **0.527** (29/57 late windows, 24 false alerts; θ = 3.5 picked on the early halves).
+
+**L-0052** · 2026-10-27T16:20+05:30 · Claude Opus 5.5 · CODE / EXP · optional detectors D5–D8, first validation (θ ∈ {3.0 … 4.5})
+- Files: `detectors/shift.py` (D5, two-sample KS of last W vs previous R values), `detectors/joint.py` (D6, robust Hotelling T² of level/shift/spread/jump features, MCD on probation), `detectors/subspace.py` (D7, SSA/PCA residual of the newest lag vector), `detectors/forecast.py` (D8, online AR by RLS), `detectors/lof.py` (`ref_max`, `paa`), `pipeline.py` (`transform.counts: anscombe`), `evidence.py` (one sentence each), `tests/test_leakage.py` (future-perturbation test for D4–D8).
+- Results (in-sample / θ-LOCO / time-split late, base 0.479 / 0.479 / 0.527): shift 0.478 / 0.435 / 0.505 (rejected); joint 0.525 / 0.498 / 0.527 (tie → rejected); subspace 0.530 / 0.488 / 0.538 (passes); LOF cheap 0.517 / 0.517 / 0.492 (rejected); LOF full 0.523 / 0.510 / 0.577 (passes). Every winner picked θ = 4.5, the edge of the grid → re-run with θ up to 5.5 (L-0055).
+
+**L-0053** · 2026-10-27T16:30+05:30 · Claude Opus 5.5 · PERF · compiled engine
+- Files: `src/sentinel/fast.py` (new), `runner.py` (`run_auto`), `scripts/run_detector.py`/`run_stream.py` (`--engine`), `scripts/benchmark_runtime.py` (`fast_engine` block), `requirements.txt` (numba 0.68.0), `tests/test_fast.py` (new).
+- One Numba loop for D1 + D2 (+ D7), calibration, fusion and the event machine; evidence rebuilt in Python from snapshots at the trigger row. numpy's pairwise summation, its linear quantile and CPython's float sum are reproduced, so outputs are **bit-identical to pipeline.py on all 58 files** (labels, states, events.jsonl, surprise max |Δ| = 0). With D7 the BLAS dot products differ by ≤ 1e−14 (labels and events still equal).
+- Result: 4.5 µs/point over the corpus incl. per-file setup and evidence (reference 35–40 µs on the same machine). Fix on the way: a recursive Numba helper crashed when loaded from the on-disk cache; replaced by an explicit-stack version (checked equal to numpy's sum for n = 0…4097).
+
+**L-0054** · 2026-10-27T16:35+05:30 · Claude Opus 5.5 · CODE / EXP · D9 neural forecaster
+- Files: `src/sentinel/neural.py`, `detectors/neural.py`, `scripts/train_neural.py`, `requirements-train.txt`, `models/neural_*.npz`, `results/neural_training.json`, `docs/GPU_TRAINING.md`.
+- MLP 68→64→32→2 (last 64 values normalised by their own median/robust scale + hour/weekday sin-cos) → Laplace location/scale of the next value; raw score = |error| / scale. Self-supervised; labels never read. 7 held-out-category models (`neural_wo_<category>`; NAB files are scored by the model that never saw their category) + 1 on all files for new data. Trained on this container's CPU (no GPU reachable): 20 epochs, 22 min for all 8. NumPy inference = PyTorch to 5e−12.
