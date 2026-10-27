@@ -62,3 +62,8 @@ events:
   rebaseline: true
   rebaseline_r: 50
   rebaseline_sigma: 3.0
+
+output:
+  score: alert           # alert: anomaly_score in [0.5, 1] on ANOMALOUS rows, [0, 0.5) elsewhere
+                         #        (thresholding it at 0.5 gives exactly the labels)
+                         # surprise: anomaly_score = 1 - 10^(-surprise) on every row (v1/v2)

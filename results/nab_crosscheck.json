@@ -5,26 +5,7 @@
   "perfect_raw": 116.0,
   "profile": "standard",
   "runs": {
-    "sentinel_v1_archive": {
-      "flagged_rows": 27516,
-      "alerts": 148,
-      "rows": {
-        "nab_code_raw": -2045.3414879799197,
-        "nab_code_score": -831.6127103361723,
-        "ours_score": -831.6127103361443
-      },
-      "onsets": {
-        "nab_code_raw": -21.65346714012502,
-        "nab_code_score": 40.666608991325425,
-        "ours_score": 40.666608991325425
-      },
-      "scores_label_optimised_threshold": {
-        "threshold": 1.1,
-        "nab_code_raw": -116.0,
-        "nab_code_score": 0.0
-      }
-    },
-    "sentinel_final": {
+    "alertscore": {
       "flagged_rows": 101,
       "alerts": 101,
       "rows": {
@@ -38,9 +19,9 @@
         "ours_score": 38.780481395861884
       },
       "scores_label_optimised_threshold": {
-        "threshold": 1.1,
-        "nab_code_raw": -116.0,
-        "nab_code_score": 0.0
+        "threshold": 0.999842,
+        "nab_code_raw": -26.02928316160044,
+        "nab_code_score": 38.780481395861884
       }
     }
   }

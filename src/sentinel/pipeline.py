@@ -28,7 +28,7 @@ EVENT = "EVENT"                   # output state while an incident (event) is op
 
 
 class PointResult(NamedTuple):
-    anomaly_score: float          # 1 - 10^(-surprise), in [0, 1]
+    anomaly_score: float          # in [0, 1]; see output.score in configs/default.yaml
     surprise: float               # smoothed fused surprise U-bar
     label: str                    # NORMAL / ANOMALOUS (alert rows: first label_len rows of an event)
     top_detector: str             # residual / change / shape / none
@@ -84,6 +84,7 @@ class StreamingSentinel:
         self.learn_states = ((NORMAL, COOLDOWN) if c["calibration"].get("learn_in_cooldown")
                              else (NORMAL,))
         self.recent = deque(maxlen=max(ev["rebaseline_r"], 1))
+        self.score_mode = c.get("output", {}).get("score", "surprise")
         self.i = 0
         self.state = PROBATION
         self._prob_sec, self._prob_x = [], []
@@ -211,12 +212,21 @@ class StreamingSentinel:
         alert = in_event and (self.label_len is None or not self.event_logic
                               or self.machine.length <= self.label_len)
         self.last = PointResult(
-            1.0 - 10.0 ** (-ubar), ubar,
+            self._score(ubar, alert), ubar,
             ANOMALOUS if alert else NORMAL,
             self.names[k] if u > 0 else "none",
             self.event_id if in_event else None,
             EVENT if in_event else state, tuple(us))
         return self.last
+
+    def _score(self, ubar, alert):
+        """'surprise': 1 - 10^-U. 'alert': same value squeezed into [0, 0.5) on normal rows and
+        [0.5, 1] on alert rows, so a threshold sweep over the score at 0.5 reproduces the labels
+        and lower thresholds add further candidates in surprise order."""
+        s = 1.0 - 10.0 ** (-ubar)
+        if self.score_mode == "alert":
+            return 0.5 + 0.5 * s if alert else 0.5 * s
+        return s
 
     def _open_event(self, i, sec, us, k, gap, raw_x):
         self.event_id += 1
