@@ -34,14 +34,15 @@ def variants(final):
     return [
         ("1a D1 residual only", {"change": {"enabled": False}, "shape": {"enabled": False}}, off),
         ("1b D2 change only", {"residual": {"enabled": False}, "shape": {"enabled": False}}, off),
-        ("1c D3 shape only", {"residual": {"enabled": False}, "change": {"enabled": False}}, off),
-        ("1d D1 + D2 (no shape)", {"shape": {"enabled": False}}, off),
-        ("2 all three, no calibration (raw / probation p99)",
+        ("1c D3 shape only", {"residual": {"enabled": False}, "change": {"enabled": False},
+                              "shape": {"enabled": True}}, off),
+        ("1d D1 + D2 + D3 (shape on)", {"shape": {"enabled": True}}, off),
+        ("2 D1 + D2, no calibration (raw / probation p99)",
          {"calibration": {"mode": "p99"}}, "p99"),
         ("3 + calibration, plain threshold", {**tail, **no_logic}, off),
         ("4 + hysteresis", hyst, off),
         ("5 + cooldown and max length", cool, off),
-        ("6 + pause and re-baseline (full Sentinel)", {}, off),
+        ("6 + pause and re-baseline (full Sentinel, D1 + D2)", {}, off),
     ], th
 
 

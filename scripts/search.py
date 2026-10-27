@@ -124,9 +124,11 @@ def run_fold(space, corpus, n_jobs, cat, stages, default):
     return fold
 
 
-def aggregate_nested(nested_dir, cats):
+def aggregate_nested(nested_dir, cats, allow_partial=False):
     """Micro-average the held-out rows of every fold (rows re-read from the cache)."""
     held, folds = [], {}
+    if allow_partial:
+        cats = [c for c in cats if (nested_dir / f"{c}.json").exists()]
     for cat in cats:
         path = nested_dir / f"{cat}.json"
         if not path.exists():
@@ -152,6 +154,9 @@ def main():
                          "(comma-separated); writes results/nested_loco/<category>.json")
     ap.add_argument("--aggregate-nested", action="store_true",
                     help="combine results/nested_loco/*.json into results/search_summary.json")
+    ap.add_argument("--allow-partial", action="store_true",
+                    help="with --aggregate-nested: use only the folds that exist; stored as "
+                         "nested_loco_partial (never as nested_loco)")
     args = ap.parse_args()
     space = yaml.safe_load(open(args.space))
     corpus = load_corpus()
@@ -172,10 +177,13 @@ def main():
     if args.aggregate_nested:
         out = ROOT / "results" / "search_summary.json"
         summary = json.loads(out.read_text())
-        summary["nested_loco"] = aggregate_nested(nested_dir, cats)
+        key = "nested_loco_partial" if args.allow_partial else "nested_loco"
+        summary[key] = aggregate_nested(nested_dir, cats, args.allow_partial)
+        if args.allow_partial:
+            summary[key]["note"] = (f"PARTIAL: {len(summary[key]['folds'])} of {len(cats)} categories held out; "
+                                    "not a full nested cross-validation")
         out.write_text(json.dumps(summary, indent=2, default=str))
-        print("NESTED LOCO ET F1", round(summary["nested_loco"]["f1"], 4),
-              "folds:", len(summary["nested_loco"]["folds"]))
+        print(key, "ET F1", round(summary[key]["f1"], 4), "folds:", len(summary[key]["folds"]))
         return
 
     best, pool, info, top, scores = staged_search(space, corpus, args.n_jobs, lambda r: True,

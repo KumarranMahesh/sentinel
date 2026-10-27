@@ -104,8 +104,16 @@ def main():
     cv, how = None, ""
     if summ.exists() and cfg_path:
         sj = json.loads(summ.read_text())
+        cand = Path("results/candidates.json")
         if "nested_loco" in sj:
             cv, how = sj["nested_loco"], "CV = nested LOCO (whole search re-run per fold)"
+        elif cand.exists():
+            # same protocol as the calibrated baselines: only theta_enter chosen per held-out fold
+            cv = json.loads(cand.read_text())["sentinel"]["theta_loco"]
+            how = "CV = theta-LOCO, same protocol as the calibrated baselines (scripts/candidates.py)"
+            if "nested_loco_partial" in sj:
+                how += f"; nested LOCO partial ({len(sj['nested_loco_partial']['folds'])} folds) " \
+                       f"ET F1 {sj['nested_loco_partial']['f1']:.3f}"
         else:
             cv, how = sj.get("pool_loco_cv_optimistic"), "CV = LOCO over the search pool (optimistic)"
     table.append(table_row("sentinel", "full", rows, cv,

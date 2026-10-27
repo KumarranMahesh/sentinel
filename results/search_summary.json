@@ -367,5 +367,150 @@
     "python": "3.13.17",
     "platform": "Linux-6.18.44-fc-v165-x86_64-with-glibc2.39",
     "processor": "x86_64"
+  },
+  "nested_loco_partial": {
+    "precision": 0.36363636363636365,
+    "recall": 0.4,
+    "f1": 0.380952380952381,
+    "tp": 8,
+    "fp": 14,
+    "n_windows": 20,
+    "e1": {
+      "precision": 0.36363636363636365,
+      "recall": 0.4,
+      "f1": 0.380952380952381
+    },
+    "per_category": {
+      "artificialNoAnomaly": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "artificialWithAnomaly": {
+        "precision": 0.36363636363636365,
+        "recall": 0.6666666666666666,
+        "f1": 0.4705882352941177
+      },
+      "realAdExchange": {
+        "precision": 0.4,
+        "recall": 0.2857142857142857,
+        "f1": 0.3333333333333333
+      }
+    },
+    "folds": {
+      "artificialNoAnomaly": {
+        "chosen_hash": "7b89e5c198",
+        "changes": {
+          "change.k": 1.0,
+          "change.deseasonalize": true,
+          "shape.enabled": false,
+          "shape.m": 16,
+          "shape.history": 1000,
+          "calibration.learn_in_cooldown": true,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 400,
+          "events.max_len": 200
+        },
+        "train_et_f1": 0.48148148148148145,
+        "pool_size": 231,
+        "held_out": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "n_windows": 0,
+          "e1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          "per_category": {
+            "artificialNoAnomaly": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0
+            }
+          }
+        }
+      },
+      "artificialWithAnomaly": {
+        "chosen_hash": "620fd9bbde",
+        "changes": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "shape.history": 1000,
+          "calibration.learn_in_cooldown": true,
+          "fusion.method": "fisher",
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 200
+        },
+        "train_et_f1": 0.46445497630331756,
+        "pool_size": 229,
+        "held_out": {
+          "precision": 0.36363636363636365,
+          "recall": 0.6666666666666666,
+          "f1": 0.4705882352941177,
+          "tp": 4,
+          "fp": 7,
+          "n_windows": 6,
+          "e1": {
+            "precision": 0.36363636363636365,
+            "recall": 0.6666666666666666,
+            "f1": 0.4705882352941177
+          },
+          "per_category": {
+            "artificialWithAnomaly": {
+              "precision": 0.36363636363636365,
+              "recall": 0.6666666666666666,
+              "f1": 0.4705882352941177
+            }
+          }
+        }
+      },
+      "realAdExchange": {
+        "chosen_hash": "3a87c0a677",
+        "changes": {
+          "residual.window": 128,
+          "change.deseasonalize": true,
+          "shape.m": 64,
+          "calibration.learn_in_cooldown": true,
+          "fusion.method": "fisher",
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 200
+        },
+        "train_et_f1": 0.5145631067961166,
+        "pool_size": 230,
+        "held_out": {
+          "precision": 0.4,
+          "recall": 0.2857142857142857,
+          "f1": 0.3333333333333333,
+          "tp": 4,
+          "fp": 6,
+          "n_windows": 14,
+          "e1": {
+            "precision": 0.4,
+            "recall": 0.2857142857142857,
+            "f1": 0.3333333333333333
+          },
+          "per_category": {
+            "realAdExchange": {
+              "precision": 0.4,
+              "recall": 0.2857142857142857,
+              "f1": 0.3333333333333333
+            }
+          }
+        }
+      }
+    },
+    "note": "PARTIAL: 3 of 7 categories held out; not a full nested cross-validation"
   }
 }

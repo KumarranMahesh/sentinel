@@ -1,0 +1,105 @@
+{
+  "thetas": [
+    2.5,
+    3.0,
+    3.5,
+    4.0,
+    4.5,
+    5.0
+  ],
+  "protocol": "theta-LOCO: theta(s) chosen per held-out category on the other 6",
+  "note": "all other settings come from configs/final.yaml, which was selected on all labels",
+  "sentinel": {
+    "in_sample_best_theta": 3.5,
+    "in_sample": {
+      "f1": 0.47926267281105994,
+      "precision": 0.5148514851485149,
+      "recall": 0.4482758620689655,
+      "tp": 52,
+      "fp": 49
+    },
+    "theta_loco": {
+      "f1": 0.47926267281105994,
+      "precision": 0.5148514851485149,
+      "recall": 0.4482758620689655,
+      "tp": 52,
+      "fp": 49
+    },
+    "theta_loco_choices": {
+      "artificialNoAnomaly": 3.5,
+      "artificialWithAnomaly": 3.5,
+      "realAWSCloudwatch": 3.5,
+      "realAdExchange": 3.5,
+      "realKnownCause": 3.5,
+      "realTraffic": 3.5,
+      "realTweets": 3.5
+    }
+  },
+  "lof_calibrated": {
+    "in_sample_best_theta": 4.5,
+    "in_sample": {
+      "f1": 0.4672897196261682,
+      "precision": 0.5102040816326531,
+      "recall": 0.43103448275862066,
+      "tp": 50,
+      "fp": 48
+    },
+    "theta_loco": {
+      "f1": 0.4672897196261682,
+      "precision": 0.5102040816326531,
+      "recall": 0.43103448275862066,
+      "tp": 50,
+      "fp": 48
+    },
+    "theta_loco_choices": {
+      "artificialNoAnomaly": 4.5,
+      "artificialWithAnomaly": 4.5,
+      "realAWSCloudwatch": 4.5,
+      "realAdExchange": 4.5,
+      "realKnownCause": 4.5,
+      "realTraffic": 4.5,
+      "realTweets": 4.5
+    }
+  },
+  "overlap": {
+    "sentinel_windows": 52,
+    "lof_windows": 50,
+    "both": 37,
+    "either": 65,
+    "n_windows": 116
+  },
+  "union": {
+    "in_sample_best_thetas": "5.0|4.5",
+    "in_sample": {
+      "f1": 0.5147679324894514,
+      "precision": 0.5041322314049587,
+      "recall": 0.5258620689655172,
+      "tp": 61,
+      "fp": 60
+    },
+    "theta_loco": {
+      "f1": 0.5147679324894514,
+      "precision": 0.5041322314049587,
+      "recall": 0.5258620689655172,
+      "tp": 61,
+      "fp": 60
+    }
+  },
+  "agree": {
+    "in_sample_best_thetas": "3.5|3.0",
+    "in_sample": {
+      "f1": 0.4482758620689656,
+      "precision": 0.6724137931034483,
+      "recall": 0.33620689655172414,
+      "tp": 39,
+      "fp": 19
+    },
+    "theta_loco": {
+      "f1": 0.3855421686746988,
+      "precision": 0.64,
+      "recall": 0.27586206896551724,
+      "tp": 32,
+      "fp": 18
+    }
+  }
+}
