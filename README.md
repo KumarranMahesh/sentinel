@@ -24,13 +24,14 @@ NAB score (reported separately).
 
 | Metric | Sentinel | Note |
 |---|---|---|
-| **ET F1, held-out categories** (nested LOCO) | **⟪NESTED_F1⟫** | whole search re-run 7 times without the scored category: the number to expect on new data |
-| ET F1, all files | 0.479 (95% bootstrap CI 0.383–0.565) | in-sample: settings were selected on these labels |
+| ET F1, all files | **0.479** (95% bootstrap CI 0.383–0.565) | in-sample: 11 settings were selected on these labels |
+| ET F1, threshold chosen held-out (θ-LOCO) | 0.479 | θ chosen on 6 categories, scored on the 7th; every fold picks θ = 3.5; same protocol as the baseline table |
+| ET F1, nested LOCO, **partial** (3 of 7 categories) | **0.381** (8/20 windows, 14 false alerts) | whole search re-run without the scored category; the same 3 categories score 0.516 in-sample, so expect a drop on new data. Stopped after 3 folds for cost. |
 | Precision / recall | 0.515 / 0.448 | 52 of 116 windows, 49 false alerts |
-| Detection delay | median 0.50 of the window after its start | ET does not reward earliness inside a window, so delay is reported separately |
+| Detection delay | median trigger 1 point (5 min) after NAB's labelled anomaly point; 0.50 of the window after its start | ET does not reward earliness inside a window, so delay is reported separately |
 | NAB score (standard profile, NAB's own rule) | 38.8 | checked against NAB's `sweeper.py`; published scoreboard numbers are not comparable (they tune a threshold on all labels and see each file's range in advance) |
 | Rows labelled ANOMALOUS | 0.03% (101 trigger rows) | the event span is in `state` / `event_id` / `events.jsonl` |
-| Runtime | ⟪RUNTIME⟫ | one CPU core |
+| Runtime | 23 µs per point mean (p50 17, p99 183); 8.1 s for all 365,558 points; 0.35 MB peak heap on the longest file | one core of a 2.1 GHz Xeon (cloud container), Python 3.13; `results/runtime.json` |
 
 **Compared with the shipped v1** on the same metric, files and scorer: ET 0.444 → 0.479 in-sample
 (paired file bootstrap: +0.035, 95% CI −0.037…+0.113, **not significant**); false alerts 80 → 49;
@@ -40,11 +41,38 @@ fewer false alerts and an honest binary label, not a proven detection improvemen
 Sentinel vs baselines (best variant of each; same metric, same label convention; full table in
 `results/baselines_comparison.csv`):
 
-⟪BASELINE_TABLE⟫
+| Method | ET F1 | Held-out ET F1 (θ by LOCO) | Precision | Recall | Windows | False alerts | NAB | µs / point |
+|---|---|---|---|---|---|---|---|---|
+| **Sentinel** | 0.479 | 0.479 | 0.515 | 0.448 | 52/116 | 49 | 38.8 | 23 |
+| LOF (+ our calibration & event logic) | 0.467 | 0.467 | 0.510 | 0.431 | 50/116 | 48 | 36.7 | 279 |
+| Isolation Forest (+ our calibration & event logic) | 0.383 | 0.353 | 0.288 | 0.569 | 66/116 | 163 | 44.4 | 5,318 |
+| Rolling z-score (+ our calibration & event logic) | 0.332 | 0.332 | 0.295 | 0.379 | 44/116 | 105 | 29.6 | 10 |
+| One-Class SVM (+ our calibration & event logic) | 0.307 | 0.307 | 0.266 | 0.362 | 42/116 | 116 | 27.8 | 153 |
+| LOF (+ our event logic) | 0.235 | – | 0.146 | 0.603 | 70/116 | 411 | 36.9 | 279 |
+| Isolation Forest (+ our event logic) | 0.215 | – | 0.127 | 0.690 | 80/116 | 548 | 39.4 | 5,318 |
+| Rolling z-score (+ our event logic) | 0.136 | – | 0.075 | 0.698 | 81/116 | 992 | 20.1 | 10 |
+| LOF (plain threshold) | 0.121 | – | 0.067 | 0.681 | 79/116 | 1108 | -1193.1 | 279 |
+| Rolling z-score (plain threshold) | 0.039 | – | 0.020 | 0.905 | 105/116 | 5215 | -305.1 | 10 |
+| Random scores (plain threshold) | 0.048 | – | 0.024 | 0.931 | 108/116 | 4301 | -116.3 | – |
+
+µs / point for baselines = one scikit-learn scoring call per new point (`scripts/benchmark_runtime.py`);
+Sentinel's calibrator costs about 5–6 µs per detector per point. Baselines' event and
+calibration variants reuse Sentinel's final event settings (cooldown, max length, smoothing),
+which were tuned on all files, so their held-out column shares that caveat.
 
 Ablation (each variant with its own best θ_enter; `results/ablation.csv`):
 
-⟪ABLATION_TABLE⟫
+| Variant | θ_enter | ET F1 | Precision | Recall | False alerts | Held-out ET F1 (θ by LOCO) |
+|---|---|---|---|---|---|---|
+| 1a D1 residual only | 2.5 | 0.417 | 0.412 | 0.422 | 70 | 0.417 |
+| 1b D2 change only | 3.0 | 0.422 | 0.439 | 0.405 | 60 | 0.394 |
+| 1c D3 shape only | 2.5 | 0.176 | 0.278 | 0.129 | 39 | 0.176 |
+| 1d D1 + D2 + D3 (shape on) | 3.5 | 0.465 | 0.505 | 0.431 | 49 | 0.465 |
+| 2 D1 + D2, no calibration (raw / probation p99) | 2.0 | 0.429 | 0.380 | 0.491 | 93 | 0.429 |
+| 3 + calibration, plain threshold | 3.5 | 0.472 | 0.478 | 0.466 | 59 | 0.451 |
+| 4 + hysteresis | 3.5 | 0.477 | 0.463 | 0.491 | 66 | 0.431 |
+| 5 + cooldown and max length | 3.5 | 0.475 | 0.505 | 0.448 | 51 | 0.475 |
+| 6 + pause and re-baseline (full Sentinel, D1 + D2) | 3.5 | 0.479 | 0.515 | 0.448 | 49 | 0.479 |
 
 Published NAB detectors re-scored from NAB's result files with ET at their own NAB threshold
 (`results/nab_published.csv`): CAD OSE 0.676, HTM 0.527, ARTime 0.483. They are not causal (NAB
@@ -53,7 +81,33 @@ causal CAD OSE rerun under ET was **not verified** in this audit.
 
 ### What we learned (honest reading)
 
-⟪LEARNED⟫
+1. **Calibration + event logic carry most of the value.** Any detector fed through them improves
+   sharply (LOF 0.121 → 0.467; rolling z 0.039 → 0.332), and LOF with them is within 0.012 of
+   Sentinel under the same protocol. Sentinel's own detectors are close to LOF in accuracy but
+   about 12× cheaper per point.
+2. **D1 and D2 are complementary** (0.417 and 0.422 alone, 0.479 together). The shape detector
+   (D3) does not help on NAB (0.465 with it), so it is off in `final.yaml`.
+3. **Event logic is about alert quality more than F1**: plain threshold 0.472 with 59 false alerts
+   vs full Sentinel 0.479 with 49.
+4. **Tuning many settings overfits a little.** Choosing only θ held-out loses nothing (θ = 3.5 in
+   every fold), but re-running the whole search without a category drops those categories from
+   0.516 to 0.381 (3 folds). Quote the held-out numbers for new data.
+5. **Tested and not adopted**:
+   - **Union of Sentinel and calibrated LOF triggers**: 0.515 (61/116 windows, 60 false
+     alerts). The gain is +0.036, 95% CI −0.028…+0.101 (paired file bootstrap), so it is not
+     significant, and it would make each point about 12× more expensive. See `results/candidates.json`.
+   - **Requiring both detectors to agree**: 0.448 in-sample, 0.386 held-out.
+   - Also rejected: Fisher fusion, peak-or-mean smoothing, log1p, capped CUSUM, shape detector on.
+6. **Misses dominate errors**: 64 of 116 windows are missed vs 49 false alerts. Weakest
+   categories are Traffic (3/14) and Known cause (7/19); several missed windows show no visible
+   change and several false alerts are clear unlabelled events (`figures/examples_fn.png`,
+   `figures/examples_fp.png`).
+
+**Against the reported competitor score (≈ 0.71 F1):** not comparable as stated. We do not know
+its metric, data split or protocol. Under our trigger-based metric the strongest published NAB
+detector (CAD OSE, non-causal) reaches 0.676 at NAB's threshold, and an overlap metric
+gives 0.945 to "flag every row", so an unqualified "0.71 F1" cannot be ranked against our
+numbers. Our best defensible result is ET F1 0.479 all files / 0.381 partial nested held-out.
 
 ## Quick start
 
@@ -147,9 +201,12 @@ a window scores the same, which is why delay and NAB are always shown next to it
   cooldown/max length → structural options; objective = micro ET F1; final pick by a pre-set
   stability rule (top 5 within 0.01 → lowest per-category spread). 231 configs, every one cached
   (key = data fingerprint + code hash + config) and logged in `experiments/runs.csv`.
-- **Nested leave-one-category-out**: the whole staged search is re-run 7 times on 6 categories and
-  its pick is scored on the 7th. This is the held-out number; the "pool LOCO" (choosing from the
-  configs the all-labels search produced, 0.355) is reported as optimistic.
+- **Held-out checks**: (a) θ-LOCO, where only θ is chosen on 6 categories and scored on the 7th,
+  the same protocol for Sentinel and every calibrated baseline; (b) nested LOCO, where the whole
+  staged search is re-run without the scored category. (b) was run for 3 of 7 categories
+  (about 12–30 min per fold on 2 cores) and is reported as partial. The "pool LOCO" (0.355,
+  choosing among configs that an all-labels search produced) is optimistic and is not used
+  for claims.
 - **Baselines** (`scripts/run_baselines.py`): null, random, rolling z-score, Isolation Forest, LOF,
   One-Class SVM; each raw, with Sentinel's event logic, and with Sentinel's calibration + event
   logic; same single-trigger-row label convention; LOCO-chosen thresholds in the held-out column.
@@ -160,18 +217,19 @@ a window scores the same, which is why delay and NAB are always shown next to it
 ## Reproduce every number and figure
 
 ```bash
-pytest -q                                                       # ⟪N_TESTS⟫ tests incl. leakage
+pytest -q                                                       # 57 tests incl. leakage
 python scripts/download_nab.py --zip NAB-master.zip --results ARTime numenta contextOSE knncad earthgeckoSkyline relativeEntropy randomCutForest twitterADVec windowedGaussian
 python scripts/audit_dataset.py                                 # reports/dataset_audit.md
 python scripts/search.py --space configs/search_space.yaml      # ~52 min on 2 cores, cached
-for c in artificialNoAnomaly artificialWithAnomaly realAdExchange realTraffic realKnownCause realAWSCloudwatch realTweets; do
-  python scripts/search.py --fold $c; done                      # nested LOCO (⟪NESTED_TIME⟫ on 2 cores)
-python scripts/search.py --aggregate-nested
+for c in artificialNoAnomaly artificialWithAnomaly realAdExchange; do
+  python scripts/search.py --fold $c; done                      # nested LOCO folds run here (~50 min on 2 cores)
+python scripts/search.py --aggregate-nested --allow-partial     # -> nested_loco_partial (add the other 4 categories for the full version)
 python scripts/run_detector.py --detector sentinel --config configs/final.yaml --out predictions/
 python scripts/evaluate.py --pred predictions/ --out results/
 python scripts/metric_audit.py --pred predictions --name sentinel_final
 python scripts/nab_crosscheck.py --pred predictions --name sentinel_final
 python scripts/probation_sensitivity.py
+python scripts/candidates.py                                    # theta-LOCO + Sentinel/LOF combinations
 python scripts/run_baselines.py                                 # results/baselines_comparison.csv
 python scripts/ablation.py                                      # results/ablation.csv
 python scripts/benchmark_runtime.py --config configs/final.yaml
@@ -227,7 +285,26 @@ PLAN.md, LOGBOOK.md
 
 ## Limitations
 
-⟪LIMITATIONS⟫
+- **The challenge metric is unknown.** ET is our definition; the organizers' hidden evaluator may
+  differ. If it rewards long overlapping alerts, set `events.label_len: null` (whole events
+  labelled, detection unchanged); if it charges every flagged row, keep the default.
+- **Held-out evidence is partial**: nested LOCO covers 3 of 7 categories (20 of 116 windows).
+  With 116 windows, ET F1 has a 95% CI of about ±0.09, so differences below ~0.05 between
+  configs are not meaningful.
+- **Probation needs the file length** (NAB's rule). With a fixed 750 points, ET is 0.474 instead
+  of 0.479 (`results/probation_sensitivity.json`).
+- **NAB labels are imperfect** (Wu & Keogh): some false alerts are clear unlabelled events and
+  some windows show no visible change.
+- **Misses dominate** (64 of 116 windows), worst on Traffic and Known-cause series. Bursty
+  Tweets/AWS series give most false alerts (23 and 9 of 49).
+- The `anomaly_score` column is a smoothed surprise. It stays high for long stretches, so NAB's own
+  threshold sweep on it scores 0.0 (best = never alert). Use the binary label for NAB.
+- **Published NAB detectors** (CAD OSE 0.676, HTM 0.527 under ET) score higher or similar, but
+  they are not causal (each file's min/max is given in advance) and their thresholds are tuned on
+  all labels. A causal re-run under ET was not done in this audit.
+- **Not done**: no demo video was recorded (script: `reports/demo_script.md`; screenshot:
+  `figures/demo_streamlit.png`). The team name is not set. No GPU was used: the runs were on a
+  cloud CPU container, and the per-point streaming workload would not benefit.
 
 References: NAB (github.com/numenta/NAB); Ahmad et al. 2017, *Neurocomputing*; Wu & Keogh,
 arXiv:2009.13807; Kim et al., AAAI 2022; Siffer et al., KDD 2017 (peaks-over-threshold).

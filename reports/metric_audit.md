@@ -93,6 +93,7 @@ show how each metric treats timing.
 | ref: 1 row before each window | 0.000 | 0.000 | 0 / 0 | 116 | −5.3 | −5.3 | 0.03% |
 | ref: 1 row after each window | 0.000 | 0.000 | 0 / 0 | 113 | −0.1 | −0.1 | 0.03% |
 | Sentinel v1 (archive `final.yaml`, whole event labelled) | 0.532 | 0.444 | 0.412 / 0.483 | 80 | 40.7 | −831.6 | 8.27% |
+| Sentinel final (`configs/final.yaml` v2, trigger row labelled; in-sample) | 0.479 | 0.479 | 0.515 / 0.448 | 49 | 38.8 | 38.8 | 0.03% |
 
 Reading:
 
@@ -145,3 +146,12 @@ overlap metric like E1, Sentinel's single-row labels score lower than long label
 (`label_len: null` restores whole-event labels without changing anything else). If it charges
 per flagged row (NAB, point-wise), single-row labels are much safer. We chose robustness over
 matching one guess.
+
+## 7. Final configuration under every metric
+
+`results/metric_audit.csv`, `results/nab_crosscheck.json` (NAB's own code): the final output
+scores ET 0.479, E1 0.479, NAB 38.78 under both conventions (only trigger rows are labelled),
+point-wise F1 0.003 (expected for single-row labels). Paired file bootstrap vs v1 on ET:
++0.035, 95% CI −0.037…+0.113 (`results/compare_v1_vs_final.json`), not significant. Held-out
+estimates and baselines: `reports/final_audit_report.md` Section 8.
+
