@@ -126,6 +126,9 @@ python scripts/run_detector.py --detector sentinel --config configs/final.yaml -
 python scripts/evaluate.py --pred predictions/ --out results/
 ```
 
+The submission zip ships `predictions/all_predictions.csv` and `predictions/events.jsonl`;
+`evaluate.py` scores the per-file folder that `run_detector.py` writes (about 9 s).
+
 Run on any `timestamp,value` CSV (for hidden test files; `--unknown-length` = true streaming):
 
 ```bash
