@@ -1,0 +1,714 @@
+{
+  "prediction_dir": "predictions/",
+  "definition": "primary: overall.trigger = trigger-based event F1 (ET); top-level f1/precision/recall = overlap event F1 (E1, secondary, gameable by long alerts); all micro-averaged over files. See reports/metric_audit.md.",
+  "overall": {
+    "files": 58,
+    "tp_gt": 52,
+    "fn": 64,
+    "tp_pred": 52,
+    "fp": 49,
+    "n_windows": 116,
+    "n_events": 101,
+    "precision": 0.5148514851485149,
+    "recall": 0.4482758620689655,
+    "f1": 0.47926267281105994,
+    "pointwise": {
+      "precision": 0.5148514851485149,
+      "recall": 0.0015524705179877593,
+      "f1": 0.0030956066198356944
+    },
+    "nab_standard": 38.780481395861884,
+    "delay": {
+      "n_detected": 52,
+      "delay_points": {
+        "median": 131.0,
+        "mean": 181.84615384615384
+      },
+      "normalized_delay": {
+        "median": 0.5015685142719113,
+        "mean": 0.4720626748318628
+      },
+      "delay_from_label_points": {
+        "median": 1.0,
+        "mean": 0.28846153846153844
+      },
+      "delay_minutes": {
+        "median": 852.5,
+        "mean": 1131.3076923076924
+      },
+      "delay_from_label_minutes": {
+        "median": 5.0,
+        "mean": -2.019230769230769
+      }
+    },
+    "trigger": {
+      "tp": 52,
+      "fn": 64,
+      "fp": 49,
+      "redundant": 0,
+      "n_alerts": 101,
+      "n_windows": 116,
+      "precision": 0.5148514851485149,
+      "recall": 0.4482758620689655,
+      "f1": 0.47926267281105994,
+      "alerts_per_detected_window": 1.0,
+      "delay": {
+        "n_detected": 52,
+        "delay_points": {
+          "median": 131.0,
+          "mean": 181.84615384615384
+        },
+        "normalized_delay": {
+          "median": 0.5015685142719113,
+          "mean": 0.4720626748318628
+        },
+        "delay_from_label_points": {
+          "median": 1.0,
+          "mean": 0.28846153846153844
+        },
+        "delay_minutes": {
+          "median": 852.5,
+          "mean": 1131.3076923076924
+        },
+        "delay_from_label_minutes": {
+          "median": 5.0,
+          "mean": -2.019230769230769
+        }
+      }
+    },
+    "composite": {
+      "event_recall": 0.4482758620689655,
+      "point_precision": 0.5148514851485149,
+      "f1": 0.47926267281105994
+    },
+    "nab_standard_official": 38.780481395861884,
+    "flagged_points": 101,
+    "scored_points": 332842,
+    "flagged_fraction": 0.00030344728129262535,
+    "false_alerts_per_day": 0.024054400581451044
+  },
+  "bootstrap": {
+    "metric": "et",
+    "f1_ci95": [
+      0.3833897524467473,
+      0.5648248792270532
+    ],
+    "f1_boot_mean": 0.47855045877802316,
+    "n_boot": 1000,
+    "seed": 42
+  },
+  "bootstrap_e1": {
+    "metric": "e1",
+    "f1_ci95": [
+      0.3833897524467473,
+      0.5648248792270532
+    ],
+    "f1_boot_mean": 0.47855045877802316,
+    "n_boot": 1000,
+    "seed": 42
+  },
+  "per_category": {
+    "artificialNoAnomaly": {
+      "files": 5,
+      "tp_gt": 0,
+      "fn": 0,
+      "tp_pred": 0,
+      "fp": 1,
+      "n_windows": 0,
+      "n_events": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "pointwise": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "nab_standard": null,
+      "delay": {
+        "n_detected": 0,
+        "delay_points": {
+          "median": null,
+          "mean": null
+        },
+        "normalized_delay": {
+          "median": null,
+          "mean": null
+        },
+        "delay_from_label_points": {
+          "median": null,
+          "mean": null
+        },
+        "delay_minutes": {
+          "median": null,
+          "mean": null
+        },
+        "delay_from_label_minutes": {
+          "median": null,
+          "mean": null
+        }
+      },
+      "trigger": {
+        "tp": 0,
+        "fn": 0,
+        "fp": 1,
+        "redundant": 0,
+        "n_alerts": 1,
+        "n_windows": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "alerts_per_detected_window": null,
+        "delay": {
+          "n_detected": 0,
+          "delay_points": {
+            "median": null,
+            "mean": null
+          },
+          "normalized_delay": {
+            "median": null,
+            "mean": null
+          },
+          "delay_from_label_points": {
+            "median": null,
+            "mean": null
+          },
+          "delay_minutes": {
+            "median": null,
+            "mean": null
+          },
+          "delay_from_label_minutes": {
+            "median": null,
+            "mean": null
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.0,
+        "point_precision": 0.0,
+        "f1": 0.0
+      },
+      "nab_standard_official": null,
+      "flagged_points": 1,
+      "scored_points": 17140,
+      "flagged_fraction": 5.8343057176196036e-05,
+      "false_alerts_per_day": 0.016807703530784944
+    },
+    "artificialWithAnomaly": {
+      "files": 6,
+      "tp_gt": 4,
+      "fn": 2,
+      "tp_pred": 4,
+      "fp": 0,
+      "n_windows": 6,
+      "n_events": 4,
+      "precision": 1.0,
+      "recall": 0.6666666666666666,
+      "f1": 0.8,
+      "pointwise": {
+        "precision": 1.0,
+        "recall": 0.0016542597187758478,
+        "f1": 0.0033030553261767133
+      },
+      "nab_standard": 63.07421123790568,
+      "delay": {
+        "n_detected": 4,
+        "delay_points": {
+          "median": 202.0,
+          "mean": 160.75
+        },
+        "normalized_delay": {
+          "median": 0.5012406947890818,
+          "mean": 0.39888337468982626
+        },
+        "delay_from_label_points": {
+          "median": 1.0,
+          "mean": -40.25
+        },
+        "delay_minutes": {
+          "median": 1010.0,
+          "mean": 803.75
+        },
+        "delay_from_label_minutes": {
+          "median": 5.0,
+          "mean": -201.25
+        }
+      },
+      "trigger": {
+        "tp": 4,
+        "fn": 2,
+        "fp": 0,
+        "redundant": 0,
+        "n_alerts": 4,
+        "n_windows": 6,
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "f1": 0.8,
+        "alerts_per_detected_window": 1.0,
+        "delay": {
+          "n_detected": 4,
+          "delay_points": {
+            "median": 202.0,
+            "mean": 160.75
+          },
+          "normalized_delay": {
+            "median": 0.5012406947890818,
+            "mean": 0.39888337468982626
+          },
+          "delay_from_label_points": {
+            "median": 1.0,
+            "mean": -40.25
+          },
+          "delay_minutes": {
+            "median": 1010.0,
+            "mean": 803.75
+          },
+          "delay_from_label_minutes": {
+            "median": 5.0,
+            "mean": -201.25
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.6666666666666666,
+        "point_precision": 1.0,
+        "f1": 0.8
+      },
+      "nab_standard_official": 63.07421123790568,
+      "flagged_points": 4,
+      "scored_points": 20568,
+      "flagged_fraction": 0.00019447685725398678,
+      "false_alerts_per_day": 0.0
+    },
+    "realAWSCloudwatch": {
+      "files": 17,
+      "tp_gt": 13,
+      "fn": 17,
+      "tp_pred": 13,
+      "fp": 9,
+      "n_windows": 30,
+      "n_events": 22,
+      "precision": 0.5909090909090909,
+      "recall": 0.43333333333333335,
+      "f1": 0.5,
+      "pointwise": {
+        "precision": 0.5909090909090909,
+        "recall": 0.0020595690747782004,
+        "f1": 0.004104831070413641
+      },
+      "nab_standard": 38.0427079747898,
+      "delay": {
+        "n_detected": 13,
+        "delay_points": {
+          "median": 104.0,
+          "mean": 115.84615384615384
+        },
+        "normalized_delay": {
+          "median": 0.5037220843672456,
+          "mean": 0.48987382255855305
+        },
+        "delay_from_label_points": {
+          "median": 3.0,
+          "mean": -5.6923076923076925
+        },
+        "delay_minutes": {
+          "median": 520.0,
+          "mean": 580.7692307692307
+        },
+        "delay_from_label_minutes": {
+          "median": 15.0,
+          "mean": -28.46153846153846
+        }
+      },
+      "trigger": {
+        "tp": 13,
+        "fn": 17,
+        "fp": 9,
+        "redundant": 0,
+        "n_alerts": 22,
+        "n_windows": 30,
+        "precision": 0.5909090909090909,
+        "recall": 0.43333333333333335,
+        "f1": 0.5,
+        "alerts_per_detected_window": 1.0,
+        "delay": {
+          "n_detected": 13,
+          "delay_points": {
+            "median": 104.0,
+            "mean": 115.84615384615384
+          },
+          "normalized_delay": {
+            "median": 0.5037220843672456,
+            "mean": 0.48987382255855305
+          },
+          "delay_from_label_points": {
+            "median": 3.0,
+            "mean": -5.6923076923076925
+          },
+          "delay_minutes": {
+            "median": 520.0,
+            "mean": 580.7692307692307
+          },
+          "delay_from_label_minutes": {
+            "median": 15.0,
+            "mean": -28.46153846153846
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.43333333333333335,
+        "point_precision": 0.5909090909090909,
+        "f1": 0.5
+      },
+      "nab_standard_official": 38.0427079747898,
+      "flagged_points": 22,
+      "scored_points": 57591,
+      "flagged_fraction": 0.00038200413259016164,
+      "false_alerts_per_day": 0.04500859539148101
+    },
+    "realAdExchange": {
+      "files": 6,
+      "tp_gt": 4,
+      "fn": 10,
+      "tp_pred": 4,
+      "fp": 2,
+      "n_windows": 14,
+      "n_events": 6,
+      "precision": 0.6666666666666666,
+      "recall": 0.2857142857142857,
+      "f1": 0.4,
+      "pointwise": {
+        "precision": 0.6666666666666666,
+        "recall": 0.004166666666666667,
+        "f1": 0.008281573498964802
+      },
+      "nab_standard": 26.028243555745956,
+      "delay": {
+        "n_detected": 4,
+        "delay_points": {
+          "median": 29.0,
+          "mean": 36.5
+        },
+        "normalized_delay": {
+          "median": 0.5094474153297682,
+          "mean": 0.4401069518716577
+        },
+        "delay_from_label_points": {
+          "median": 1.5,
+          "mean": -2.25
+        },
+        "delay_minutes": {
+          "median": 1740.0,
+          "mean": 2265.0
+        },
+        "delay_from_label_minutes": {
+          "median": 90.0,
+          "mean": -150.0
+        }
+      },
+      "trigger": {
+        "tp": 4,
+        "fn": 10,
+        "fp": 2,
+        "redundant": 0,
+        "n_alerts": 6,
+        "n_windows": 14,
+        "precision": 0.6666666666666666,
+        "recall": 0.2857142857142857,
+        "f1": 0.4,
+        "alerts_per_detected_window": 1.0,
+        "delay": {
+          "n_detected": 4,
+          "delay_points": {
+            "median": 29.0,
+            "mean": 36.5
+          },
+          "normalized_delay": {
+            "median": 0.5094474153297682,
+            "mean": 0.4401069518716577
+          },
+          "delay_from_label_points": {
+            "median": 1.5,
+            "mean": -2.25
+          },
+          "delay_minutes": {
+            "median": 1740.0,
+            "mean": 2265.0
+          },
+          "delay_from_label_minutes": {
+            "median": 90.0,
+            "mean": -150.0
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.2857142857142857,
+        "point_precision": 0.6666666666666666,
+        "f1": 0.4
+      },
+      "nab_standard_official": 26.028243555745956,
+      "flagged_points": 6,
+      "scored_points": 8172,
+      "flagged_fraction": 0.0007342143906020558,
+      "false_alerts_per_day": 0.005723825423324589
+    },
+    "realKnownCause": {
+      "files": 7,
+      "tp_gt": 7,
+      "fn": 12,
+      "tp_pred": 7,
+      "fp": 12,
+      "n_windows": 19,
+      "n_events": 19,
+      "precision": 0.3684210526315789,
+      "recall": 0.3684210526315789,
+      "f1": 0.3684210526315789,
+      "pointwise": {
+        "precision": 0.3684210526315789,
+        "recall": 0.0010615711252653928,
+        "f1": 0.0021170421896264933
+      },
+      "nab_standard": 26.04847574796384,
+      "delay": {
+        "n_detected": 7,
+        "delay_points": {
+          "median": 118.0,
+          "mean": 338.85714285714283
+        },
+        "normalized_delay": {
+          "median": 0.5700483091787439,
+          "mean": 0.622110464821682
+        },
+        "delay_from_label_points": {
+          "median": 11.0,
+          "mean": 119.28571428571429
+        },
+        "delay_minutes": {
+          "median": 1470.0,
+          "mean": 2115.714285714286
+        },
+        "delay_from_label_minutes": {
+          "median": 55.0,
+          "mean": 650.0
+        }
+      },
+      "trigger": {
+        "tp": 7,
+        "fn": 12,
+        "fp": 12,
+        "redundant": 0,
+        "n_alerts": 19,
+        "n_windows": 19,
+        "precision": 0.3684210526315789,
+        "recall": 0.3684210526315789,
+        "f1": 0.3684210526315789,
+        "alerts_per_detected_window": 1.0,
+        "delay": {
+          "n_detected": 7,
+          "delay_points": {
+            "median": 118.0,
+            "mean": 338.85714285714283
+          },
+          "normalized_delay": {
+            "median": 0.5700483091787439,
+            "mean": 0.622110464821682
+          },
+          "delay_from_label_points": {
+            "median": 11.0,
+            "mean": 119.28571428571429
+          },
+          "delay_minutes": {
+            "median": 1470.0,
+            "mean": 2115.714285714286
+          },
+          "delay_from_label_minutes": {
+            "median": 55.0,
+            "mean": 650.0
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.3684210526315789,
+        "point_precision": 0.3684210526315789,
+        "f1": 0.3684210526315789
+      },
+      "nab_standard_official": 26.04847574796384,
+      "flagged_points": 19,
+      "scored_points": 64925,
+      "flagged_fraction": 0.00029264536003080477,
+      "false_alerts_per_day": 0.01780846623553964
+    },
+    "realTraffic": {
+      "files": 7,
+      "tp_gt": 3,
+      "fn": 11,
+      "tp_pred": 3,
+      "fp": 2,
+      "n_windows": 14,
+      "n_events": 5,
+      "precision": 0.6,
+      "recall": 0.21428571428571427,
+      "f1": 0.3157894736842105,
+      "pointwise": {
+        "precision": 0.6,
+        "recall": 0.0019230769230769232,
+        "f1": 0.003833865814696486
+      },
+      "nab_standard": 18.877718106016964,
+      "delay": {
+        "n_detected": 3,
+        "delay_points": {
+          "median": 62.0,
+          "mean": 47.333333333333336
+        },
+        "normalized_delay": {
+          "median": 0.504,
+          "mean": 0.5287356321839081
+        },
+        "delay_from_label_points": {
+          "median": 1.0,
+          "mean": 1.3333333333333333
+        },
+        "delay_minutes": {
+          "median": 435.0,
+          "mean": 319.3333333333333
+        },
+        "delay_from_label_minutes": {
+          "median": 5.0,
+          "mean": 6.666666666666667
+        }
+      },
+      "trigger": {
+        "tp": 3,
+        "fn": 11,
+        "fp": 2,
+        "redundant": 0,
+        "n_alerts": 5,
+        "n_windows": 14,
+        "precision": 0.6,
+        "recall": 0.21428571428571427,
+        "f1": 0.3157894736842105,
+        "alerts_per_detected_window": 1.0,
+        "delay": {
+          "n_detected": 3,
+          "delay_points": {
+            "median": 62.0,
+            "mean": 47.333333333333336
+          },
+          "normalized_delay": {
+            "median": 0.504,
+            "mean": 0.5287356321839081
+          },
+          "delay_from_label_points": {
+            "median": 1.0,
+            "mean": 1.3333333333333333
+          },
+          "delay_minutes": {
+            "median": 435.0,
+            "mean": 319.3333333333333
+          },
+          "delay_from_label_minutes": {
+            "median": 5.0,
+            "mean": 6.666666666666667
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.21428571428571427,
+        "point_precision": 0.6,
+        "f1": 0.3157894736842105
+      },
+      "nab_standard_official": 18.877718106016964,
+      "flagged_points": 5,
+      "scored_points": 13315,
+      "flagged_fraction": 0.0003755163349605708,
+      "false_alerts_per_day": 0.012640948773432938
+    },
+    "realTweets": {
+      "files": 10,
+      "tp_gt": 21,
+      "fn": 12,
+      "tp_pred": 21,
+      "fp": 23,
+      "n_windows": 33,
+      "n_events": 44,
+      "precision": 0.4772727272727273,
+      "recall": 0.6363636363636364,
+      "f1": 0.5454545454545454,
+      "pointwise": {
+        "precision": 0.4772727272727273,
+        "recall": 0.0013417672992141077,
+        "f1": 0.0026760114686205797
+      },
+      "nab_standard": 56.384994932510786,
+      "delay": {
+        "n_detected": 21,
+        "delay_points": {
+          "median": 201.0,
+          "mean": 221.28571428571428
+        },
+        "normalized_delay": {
+          "median": 0.4987405541561713,
+          "mean": 0.42295037816410674
+        },
+        "delay_from_label_points": {
+          "median": 0.0,
+          "mean": -27.61904761904762
+        },
+        "delay_minutes": {
+          "median": 1005.0,
+          "mean": 1106.4285714285713
+        },
+        "delay_from_label_minutes": {
+          "median": 0.0,
+          "mean": -138.0952380952381
+        }
+      },
+      "trigger": {
+        "tp": 21,
+        "fn": 12,
+        "fp": 23,
+        "redundant": 0,
+        "n_alerts": 44,
+        "n_windows": 33,
+        "precision": 0.4772727272727273,
+        "recall": 0.6363636363636364,
+        "f1": 0.5454545454545454,
+        "alerts_per_detected_window": 1.0,
+        "delay": {
+          "n_detected": 21,
+          "delay_points": {
+            "median": 201.0,
+            "mean": 221.28571428571428
+          },
+          "normalized_delay": {
+            "median": 0.4987405541561713,
+            "mean": 0.42295037816410674
+          },
+          "delay_from_label_points": {
+            "median": 0.0,
+            "mean": -27.61904761904762
+          },
+          "delay_minutes": {
+            "median": 1005.0,
+            "mean": 1106.4285714285713
+          },
+          "delay_from_label_minutes": {
+            "median": 0.0,
+            "mean": -138.0952380952381
+          }
+        }
+      },
+      "composite": {
+        "event_recall": 0.6363636363636364,
+        "point_precision": 0.4772727272727273,
+        "f1": 0.5454545454545454
+      },
+      "nab_standard_official": 56.384994932510786,
+      "flagged_points": 44,
+      "scored_points": 151131,
+      "flagged_fraction": 0.00029113815166974347,
+      "false_alerts_per_day": 0.043832425672143516
+    }
+  }
+}

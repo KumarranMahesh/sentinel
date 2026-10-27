@@ -1,10 +1,10 @@
-# Chosen by scripts/search.py (staged grid + LOCO stability rule).
-# config hash b5bef53343; changes vs default: {"season.acf_min": 0.5, "change.k": 1.0, "shape.m": 16, "fusion.smooth": 5, "events.theta_enter": 3.5, "events.exit_offset": 0.5, "events.cooldown": 100, "events.max_len": 800}
+# Chosen by scripts/search.py (staged grid, objective = micro trigger-based event F1, Stage-4 stability rule).
+# config hash 7b89e5c198; changes vs default: {"change.k": 1.0, "change.deseasonalize": true, "shape.enabled": false, "shape.m": 16, "shape.history": 1000, "calibration.learn_in_cooldown": true, "fusion.smooth": 5, "events.theta_enter": 3.5, "events.exit_offset": 0.5, "events.cooldown": 400, "events.max_len": 200}
 probation:
   percent: 0.15
   default_len: 750
 season:
-  acf_min: 0.5
+  acf_min: 0.3
 transform:
   log1p: false
   skew_min: 2.0
@@ -21,17 +21,18 @@ change:
   k_v: 0.5
   h: 5.0
   rebaseline_scale: false
+  deseasonalize: true
 shape:
-  enabled: true
+  enabled: false
   m: 16
-  history: 2000
+  history: 1000
 calibration:
   buffer: 2000
   tail_q: 0.95
   min_exceed: 10
   min_tail_n: 100
   recalc_every: 50
-  learn_in_cooldown: false
+  learn_in_cooldown: true
 fusion:
   method: max_bonferroni
   smooth: 5
@@ -40,8 +41,9 @@ events:
   enabled: true
   theta_enter: 3.5
   exit_offset: 0.5
-  cooldown: 100
-  max_len: 800
+  cooldown: 400
+  max_len: 200
+  label_len: 1
   pause: true
   rebaseline: true
   rebaseline_r: 50
