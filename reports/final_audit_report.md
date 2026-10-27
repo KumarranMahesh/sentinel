@@ -148,28 +148,170 @@ Full details: `reports/metric_audit.md`.
 
 ## 8. Experimental results
 
-PENDING
+All on the 58 NAB files of the supplied archive, metric ET unless stated. "In-sample" = settings
+selected on these labels.
+
+**Final configuration** (`configs/final.yaml`, hash `7b89e5c198`; staged search of 231 configs,
+objective ET, pre-set stability rule; `results/search_summary.json`):
+- Changes from the defaults: change.k 1.0, deseasonalized CUSUM, shape detector off,
+  learn in cooldown, smoothing 5, θ_enter 3.5, exit offset 0.5, cooldown 400, max length 200.
+
+| Result | Value | Source |
+|---|---|---|
+| ET F1, all files (in-sample) | **0.479** (P 0.515, R 0.448; 52/116 windows, 49 false alerts; 95% bootstrap CI 0.383–0.565) | `results/metrics_summary.json` |
+| ET F1, θ-LOCO (only θ chosen held-out) | 0.479 (θ = 3.5 in all 7 folds) | `results/candidates.json` |
+| ET F1, nested LOCO, **partial** (3 of 7 categories, 20 windows) | **0.381** (8 TP, 14 FP); the same 3 categories score 0.516 in-sample | `results/search_summary.json` → `nested_loco_partial` |
+| ET F1, pool LOCO (optimistic, not used for claims) | 0.355 | same |
+| NAB standard score (NAB's own code, both conventions) | 38.8 | `results/nab_crosscheck.json` |
+| E1 / composite / point-wise F1 | 0.479 / 0.479 / 0.003 | `results/metric_audit.csv` |
+| Delay | median trigger 1 point (5 min) after the labelled point; 0.50 of the window after its start | `results/metrics_summary.json` |
+| False alerts per day of scored data | 0.024 | same |
+| Runtime | 23 µs/point mean, p50 17, p99 183; 8.1 s for 365,558 points; peak heap 0.35 MB (longest file); RSS 256 MB | `results/runtime.json` |
+| Probation look-ahead removed (750 for all files) | ET 0.474, NAB 37.1 | `results/probation_sensitivity.json` |
+
+**vs v1 (same files, metric, scorer):**
+- ET 0.444 → 0.479; paired file bootstrap +0.035, 95% CI −0.037…+0.113, P(≤0) = 0.18.
+  Not significant, and in-sample.
+- False alerts 80 → 49; windows found 56 → 52.
+- NAB of the shipped prediction file −831.6 → 38.8 (`results/compare_v1_vs_final.json`).
+
+**Baselines** (`results/baselines_comparison.csv`; held-out = θ chosen on 6 categories for every method):
+
+| Method | ET F1 | Held-out | P | R | False alerts | NAB |
+|---|---|---|---|---|---|---|
+| Sentinel | 0.479 | 0.479 | 0.515 | 0.448 | 49 | 38.8 |
+| LOF + Sentinel calibration & event logic | 0.467 | 0.467 | 0.510 | 0.431 | 48 | 36.7 |
+| Isolation Forest + same | 0.383 | 0.353 | 0.288 | 0.569 | 163 | 44.4 |
+| Rolling z-score + same | 0.332 | 0.332 | 0.295 | 0.379 | 105 | 29.6 |
+| One-Class SVM + same | 0.307 | 0.307 | 0.266 | 0.362 | 116 | 27.8 |
+| Best plain baseline (LOF + event logic) | 0.235 | – | 0.146 | 0.603 | 411 | 36.9 |
+| Random scores, plain threshold | 0.048 | – | 0.024 | 0.931 | 4,301 | −116.3 |
+
+LOF with our calibration and event logic is within 0.012 of Sentinel, but costs 279 µs vs 23 µs
+per point. The calibration and event logic are the main contribution. The calibrated baselines
+use Sentinel's final event settings (tuned on all files).
+
+**Ablation** (`results/ablation.csv`, each variant with its own best θ):
+- D1 only 0.417; D2 only 0.422; D3 only 0.176; D1 + D2 + D3 0.465.
+- D1 + D2 without calibration 0.429; + calibration (plain threshold) 0.472; + hysteresis 0.477;
+  + cooldown/max length 0.475; + pause/re-baseline (final) 0.479.
+- False alerts fall from 93 (no calibration) and 59 (plain threshold) to 49.
+
+**Targeted candidates** (`scripts/candidates.py`, `results/candidates.json`, θ-LOCO):
+- Union of Sentinel and calibrated-LOF triggers: 0.515 (61/116 windows, 60 false alerts);
+  +0.036 vs Sentinel, 95% CI −0.028…+0.101 (`results/compare_sentinel_vs_union.json`).
+  Not adopted: not significant, and about 12× the per-point cost.
+- Two-detector agreement: 0.448 in-sample, 0.386 held-out. Not adopted.
+- Sentinel and LOF find 37 windows in common and 65 between them.
+
+**Published NAB detectors** (`results/nab_published.csv`, from NAB's result files):
+- NAB scores are reproduced for all 9 detectors.
+- ET at their NAB threshold: CAD OSE 0.676, HTM 0.527, ARTime 0.483.
+- These are non-causal (whole-file min/max) with label-tuned thresholds. The causal CAD OSE
+  number (0.43) is historical and on E1; its ET value was **not verified**.
+
+**Competitor's reported ≈ 0.71 F1.** This is not comparable: its metric, split and protocol are
+unknown. Under ET, 0.71 would exceed every published NAB detector here. Under E1, flagging
+every row scores 0.945. **We did not exceed 0.71 on any comparable protocol.** Best defensible
+result: ET F1 0.479 (all files, in-sample), 0.479 with θ held out, 0.381 in partial nested
+held-out evaluation.
+
+**Error profile.**
+- 64 missed windows vs 49 false alerts: misses dominate.
+- Weakest categories: Traffic 3/14 windows, Known cause 7/19.
+- False alerts come mostly from Tweets (23) and Known cause (12).
+- Some false alerts are clear, unlabelled events (`figures/examples_fp.png`); some missed windows
+  show no visible change (`figures/examples_fn.png`).
 
 ## 9. Testing
 
-PENDING
+- `pytest -q`: **57 passed**, 0 failed, 0 skipped (23 s), after the last code change. Covers:
+  metric edge cases and adversarial strategies, leakage (future perturbation, label independence,
+  prediction-time convention, frozen calibration), causality (prefix runs), detectors,
+  calibration, events, pipeline, evidence.
+- **Clean environment** (`git archive HEAD` → fresh Python 3.13 venv → `pip install -r
+  requirements.txt` (pip cache available) → `download_nab.py --zip NAB-master.zip`):
+  - manifest verified;
+  - 57 passed;
+  - `run_detector.py` + `evaluate.py` give ET 0.479, with `all_predictions.csv` and
+    `events.jsonl` byte-identical to the project's;
+  - `run_stream.py --unknown-length` runs.
+- CLI input handling checked: short file, wrong columns and a missing file each give a clear
+  error (Section 10).
+- Not tested: Windows/macOS in this audit (v1 was developed on Windows 11); Python 3.11 not
+  re-run here.
 
 ## 10. Demo / presentation
 
-PENDING
+- **Demo:**
+  - The Streamlit app was served locally and screenshotted with Playwright
+    (`figures/demo_streamlit.png`: machine_temperature, 6 alerts, 3/4 windows, 43 µs/point).
+  - The upload path was not exercised in a browser; its validation code is shared with
+    `run_stream.py`, which was tested.
+  - **No video was recorded**; `reports/demo_script.md` is a 3-minute script plus checklist.
+- **Slides:** `slides/Sentinel_Challenge2.pptx`, 10 slides in the required order, built from the
+  result files by `slides/make_slides.py`. It was rendered to PDF and inspected.
+  - Fixed: stale v1 claims (three detectors, the log10 3 term, an art_daily false-alert note that
+    is no longer true, "laptop CPU").
+  - Labels added: held-out numbers are labelled partial or θ-LOCO.
+  - The team name is "TBD" (not supplied).
+- **Q&A notes:** `slides/qa_notes.md`, updated for ET, the NAB discrepancy, significance, and the
+  published detectors.
 
 ## 11. Reproduction instructions
 
-PENDING
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python scripts/download_nab.py --zip NAB-master.zip --results ARTime numenta contextOSE knncad earthgeckoSkyline relativeEntropy randomCutForest twitterADVec windowedGaussian
+pytest -q
+python scripts/run_detector.py --detector sentinel --config configs/final.yaml --out predictions/
+python scripts/evaluate.py --pred predictions/ --out results/
+```
+
+Every other number: the command list in `README.md` ("Reproduce every number and figure").
+- Search: about 52 min on 2 cores.
+- Nested folds: 12–30 min each.
+- Baselines: about 1 min. Ablation: about 3 min. Candidates: about 1 min.
+- Everything else: seconds.
 
 ## 12. Submission checklist
 
-PENDING
+| Item | Status |
+|---|---|
+| Source code + instructions to run locally | done (README Quick start; clean-env verified) |
+| README: setup, environment, experiment strategy, reproducibility | done; team name TBD |
+| Prediction results file | `predictions/all_predictions.csv` (in the zip) + `predictions/events.jsonl`; organizer schema unknown, `scripts/export_predictions.py` remaps columns |
+| 10-slide deck in the required order | `slides/Sentinel_Challenge2.pptx` |
+| Live / video demo | live demo works (screenshot); **video not recorded** |
+| Metric definitions | `reports/metric_audit.md` |
+| Selected configuration | `configs/final.yaml` |
+| Audit trail | `LOGBOOK.md` L-0039…, `PLAN.md` Section 21, `experiments/runs.csv` |
+| Original archives unchanged | yes (SHA-256 in Section 2 and L-0039) |
+| Raw NAB data in the package | no (reinstall from archive/commit; keeps the zip small) |
 
 ## 13. Known limitations
 
-PENDING
+1. **The organizers' metric is unknown.** ET is ours; the hidden evaluator may differ (switch
+   `events.label_len: null` for overlap-style metrics).
+2. **Held-out evidence is partial** (3 of 7 categories nested; 20 of 116 windows). With 116
+   windows, ET F1 differences below about 0.05 are within noise.
+3. **The 11-setting search overfits a little** (0.516 → 0.381 on the 3 nested categories).
+4. **Probation follows NAB's rule**, which needs the file length (small effect: 0.479 vs 0.474).
+5. **NAB labels are imperfect**; misses dominate errors; weak on Traffic and Known-cause series.
+6. **The `anomaly_score` column is not suited to NAB's own threshold sweep** (best threshold =
+   never alert, score 0.0); use the binary label for NAB.
+7. **Not verified:** causal CAD OSE under ET; Windows/macOS runs; the Streamlit upload path in a
+   browser.
+8. **No GPU was used.** The audit ran in a cloud CPU container that cannot reach the user's RTX
+   4050, and the per-point streaming workload would not benefit from one.
 
 ## 14. Final decision
 
-PENDING
+- **Submit `configs/final.yaml`** (Sentinel D1 + D2, calibrated, event logic, trigger-row labels).
+- Report ET F1 0.479 on all files with the held-out caveats (θ-LOCO 0.479; partial nested
+  0.381), NAB 38.8, and 23 µs/point.
+- Do not claim a significant improvement over v1 or over LOF + calibration, and do not claim to
+  beat 0.71.
+- The Sentinel + LOF union (0.515) is documented as a possible next step that needs more
+  validation and costs about 12× per point.

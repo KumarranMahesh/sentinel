@@ -245,3 +245,14 @@ evidence are collected in `reports/final_audit_report.md`.
 - Demo: Streamlit served locally and screenshotted with Playwright (`figures/demo_streamlit.png`, machine_temperature, 6 alerts, 43 µs/point). `run_stream.py` checked on a valid NAB file (`--unknown-length`) and on a short file, wrong columns and a missing file (clear errors).
 - Slides: v1 false-alert note (art_daily_jumpsdown) no longer true for the final config (no false alert there); slide 9 now uses the art_noisy alert with a computed count; slide 8 adds published-detector ET from `results/nab_published.csv`.
 - Nested LOCO started (`logs/nested_loco.log`); fold artificialWithAnomaly took 12 min (51 new configs).
+
+**L-0047** · ~2026-10-27T14:10+05:30 · Claude Opus 5.5 · EXP / DECISION · held-out, baselines, ablation, candidates
+- Nested LOCO stopped after 3 folds (user-approved cost cut; the 4th fold had run 16 s). Folds: artificialNoAnomaly (1 FP), artificialWithAnomaly 0.471, realAdExchange 0.333; partial aggregate ET 0.381 (8/20 windows, 14 FP) vs 0.516 in-sample on the same categories. New `--aggregate-nested --allow-partial` stores it as `nested_loco_partial` (never as `nested_loco`).
+- `run_baselines.py` (67 s): calibrated LOF 0.467 (θ-LOCO 0.467), Isolation Forest 0.383 (0.353), rolling z 0.332, OCSVM 0.307; plain/event variants ≤ 0.235. Sentinel row now uses θ-LOCO (same protocol as the baselines) from `scripts/candidates.py` (new): Sentinel θ-LOCO 0.479 (θ = 3.5 in every fold).
+- Candidates (θ-LOCO): Sentinel ∪ calibrated-LOF triggers 0.515 (61 TP, 60 FP); paired file bootstrap vs Sentinel +0.036, CI −0.028…+0.101 → not adopted (also ~12× per-point cost). Agreement rule 0.448 / 0.386 held-out → not adopted. Overlap: 37 windows found by both, 65 by either.
+- `ablation.py` fixed for the shape-off final config (old variant "D3 only" would have had no detector enabled; labels said "all three"): D1 0.417, D2 0.422, D3 0.176, D1+D2+D3 0.465, no calibration 0.429, + calibration 0.472, + hysteresis 0.477, + cooldown 0.475, full 0.479.
+- `benchmark_runtime.py` (CPU otherwise idle): 23 µs/point mean, p99 183, corpus 8.1 s, peak heap 0.35 MB; single-point baselines: rolling z 10, OCSVM 153, LOF 279, Isolation Forest 5,318 µs.
+- GPU: none reachable (cloud container, 2 Xeon cores, no `nvidia-smi`); workload is sequential per-point CPU code, so none was used.
+- Figures regenerated; slides rebuilt and rendered: removed "three detectors", "log10 3", "laptop CPU"; held-out stat labelled partial nested; slide 8 held-out column = θ-LOCO for every method.
+- Tests 57 passed. Clean environment (git archive → fresh venv → requirements → archive install): 57 passed; predictions and events.jsonl byte-identical to the project's.
+- Decision: submit `configs/final.yaml`; no claim of beating the reported competitor 0.71 (metric unknown, not comparable).
