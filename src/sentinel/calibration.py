@@ -8,6 +8,7 @@ percentile (peaks-over-threshold). The tail fit lets p go below 1/(n+1).
 import math
 
 import numpy as np
+from sortedcontainers import SortedList
 
 from .robust import RingBuffer
 
@@ -18,6 +19,7 @@ EPS = 1e-9
 class TailCalibrator:
     def __init__(self, cfg):
         self.buf = RingBuffer(int(cfg["buffer"]))
+        self.sorted = SortedList()          # same values as buf, for O(log n) tail counts
         self.tail_q = cfg["tail_q"]
         self.min_exceed = cfg["min_exceed"]
         self.min_tail_n = cfg["min_tail_n"]
@@ -39,7 +41,7 @@ class TailCalibrator:
             return 1.0
         if self.q is None or self._since >= self.recalc_every or n < 2 * self.recalc_every:
             self._recalc(v)
-        n_exceed = int(np.count_nonzero(v >= s))
+        n_exceed = n - self.sorted.bisect_left(s)
         if s <= self.q or n_exceed >= self.min_exceed or n < self.min_tail_n:
             return (1 + n_exceed) / (1 + n)
         return (1 - self.tail_q) * math.exp(-(s - self.q) / self.mean_excess)
@@ -48,7 +50,11 @@ class TailCalibrator:
         return -math.log10(max(self.pvalue(s), P_MIN))
 
     def add(self, s):
-        self.buf.add(s)
+        b = self.buf
+        if b.n == b.size:
+            self.sorted.remove(b.data[b.pos])
+        b.add(s)
+        self.sorted.add(s)
         self._since += 1
 
     def typical_p95(self):
