@@ -416,11 +416,12 @@ def s4_design(prs, d):
     xs = [x0 + i * (wbox + gap) for i in range(len(cols))]
     for i, (head, body) in enumerate(cols):
         if head is None:
-            dets = [DET_INFO[n] for n in enabled(d["cfg"])][:3]
+            dets = [DET_INFO[n] for n in enabled(d["cfg"])][:4]
+            step = h / len(dets)
             for k, (hh, bb) in enumerate(dets):
-                box_text(s, xs[i], y + k * 0.8, wbox, 0.7, [[(hh, {"bold": True, "size": 13, "color": WHITE})],
-                                                           [(bb, {"size": 10, "color": "DCE8F8"})]],
-                         fill=BLUE, margin=0.08)
+                box_text(s, xs[i], y + k * step, wbox, step - 0.08,
+                         [[(hh, {"bold": True, "size": 12, "color": WHITE})],
+                          [(bb, {"size": 9, "color": "DCE8F8"})]], fill=BLUE, margin=0.06)
             continue
         fill = NAVY if head == "Event state machine" else TINT
         c1 = WHITE if fill == NAVY else INK
@@ -543,7 +544,7 @@ def s6_experiments(prs, d):
     s = prs.slides.add_slide(prs.slide_layouts[6])
     srch = d["search"]
     n = srch.get("pool_size", 0)
-    title(s, "Experiment log: staged search (v2), then candidate detectors under a fixed rule (v3)",
+    title(s, "Experiment log: v2 search, then v3 tests under a fixed rule",
           f"v2: {n} configs, staged grid, every run in experiments/runs.csv  ·  v3: each candidate family vs the "
           "current one on held-out categories AND on the late half of every file")
     picture(s, FIG / "tuning.png", 0.6, 1.65, w=5.4)
@@ -561,7 +562,7 @@ def s6_experiments(prs, d):
                          f"{r.late_f1:.3f}", "adopted" if r.adopt else "–"])
             if r.adopt:
                 hi.append(len(rows) - 1)
-        table(s, 0.6, 4.05, 5.9, rows[:10], [2.45, 0.85, 0.85, 0.9, 0.85], size=10, row_h=0.29,
+        table(s, 0.6, 4.05, 5.9, rows[:9], [2.45, 0.85, 0.85, 0.9, 0.85], size=10, row_h=0.29,
               highlight_rows=tuple(hi[:1]))
     abl = d["abl"]
     labels = [v.split(" ", 1)[1] if " " in v else v for v in abl.variant]

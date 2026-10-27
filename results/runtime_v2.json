@@ -1,0 +1,67 @@
+{
+  "machine": {
+    "os": "Linux-6.18.44-fc-v165-x86_64-with-glibc2.39",
+    "python": "3.13.17",
+    "cpu": "x86_64",
+    "logical_cpus": 2,
+    "ram_gb": 7.8
+  },
+  "config": "configs/v2_final.yaml",
+  "points_scored": 332842,
+  "points_total": 365558,
+  "repeats": 3,
+  "us_per_point": {
+    "mean": 35.85029120423504,
+    "p50": 26.337,
+    "p95": 59.99780000000005,
+    "p99": 254.05534000000065,
+    "max": 15491.953
+  },
+  "corpus_seconds_median": 12.587100709999504,
+  "corpus_seconds_runs": [
+    12.296423875999608,
+    12.587100709999504,
+    12.81591770599971
+  ],
+  "seconds_per_file": {
+    "mean": 0.2168248339137257,
+    "max": 0.7850835270000971
+  },
+  "probation_replay_ms": {
+    "mean": 7.319050068965518,
+    "max": 17.933198
+  },
+  "component_us_per_point": {
+    "calibration.change": 6.993547986732444,
+    "calibration.residual": 9.237841900962017,
+    "change.score": 3.9167436831890203,
+    "change.update": 1.4798163002265339,
+    "residual.score": 3.8183536152288475,
+    "residual.update": 4.623664654701029
+  },
+  "component_note": "time inside each component per scored point (1 extra run with timers)",
+  "fast_engine": {
+    "available": true,
+    "corpus_seconds_median": 1.7813364770008775,
+    "corpus_seconds_runs": [
+      1.491836919999514,
+      1.886421452999457,
+      1.7813364770008775
+    ],
+    "us_per_point_mean": 4.872924343061505,
+    "points_total": 365558,
+    "first_call_seconds_incl_compile_or_cache_load": 0.25536466800076596
+  },
+  "baseline_single_point_us": {
+    "iforest": 7933.289383333334,
+    "lof": 602.2858533333334,
+    "ocsvm": 180.23693,
+    "rolling_z": 13.278603333333333
+  },
+  "memory": {
+    "file": "realKnownCause/machine_temperature_system_failure.csv",
+    "points": 22695,
+    "stream_peak_heap_mb": 0.42,
+    "process_max_rss_mb": 356.1
+  }
+}

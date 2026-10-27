@@ -31,19 +31,16 @@ def variants(final):
     no_logic = {"events": {"enabled": False}}
     hyst = {"events": {"enabled": True, "cooldown": 0, "max_len": BIG, "pause": False, "rebaseline": False}}
     cool = {"events": {"enabled": True, "pause": False, "rebaseline": False}}
-    sub = bool(final.get("subspace", {}).get("enabled"))
-    only = lambda keep: {n: {"enabled": n == keep} for n in ("residual", "change", "shape", "subspace")}
-    rows = [
-        ("1a D1 residual only", only("residual"), off),
-        ("1b D2 change only", only("change"), off),
-    ]
-    if sub:
-        rows += [("1c D7 subspace only", only("subspace"), off),
-                 ("1d D1 + D2 (v2 detectors)", {"subspace": {"enabled": False}}, off)]
-    else:
-        rows += [("1c D3 shape only", only("shape"), off),
-                 ("1d D1 + D2 + D3 (shape on)", {"shape": {"enabled": True}}, off)]
-    name = "D1 + D2 + D7" if sub else "D1 + D2"
+    label = {"residual": "D1 residual", "change": "D2 change", "shape": "D3 shape", "lof": "D4 LOF",
+             "shift": "D5 shift", "joint": "D6 joint", "subspace": "D7 subspace", "forecast": "D8 forecast",
+             "neural": "D9 neural"}
+    dets = [n for n in label if final.get(n, {}).get("enabled")]
+    only = lambda keep: {n: {"enabled": n == keep} for n in label}
+    rows = [(f"1{chr(97 + i)} {label[n]} only", only(n), off) for i, n in enumerate(dets)]
+    if len(dets) > 2:
+        rows += [(f"1{chr(97 + len(dets) + i)} without {label[n]}", {n: {"enabled": False}}, off)
+                 for i, n in enumerate(dets)]
+    name = " + ".join(label[n].split()[0] for n in dets)
     rows += [
         (f"2 {name}, no calibration (raw / probation p99)", {"calibration": {"mode": "p99"}}, "p99"),
         ("3 + calibration, plain threshold", {**tail, **no_logic}, off),

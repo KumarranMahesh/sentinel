@@ -11,45 +11,63 @@
   "points_total": 365558,
   "repeats": 3,
   "us_per_point": {
-    "mean": 23.007050216018413,
-    "p50": 16.954,
-    "p95": 37.301900000000025,
-    "p99": 183.04075000000063,
-    "max": 4259.349
+    "mean": 181.28775796323782,
+    "p50": 151.02749999999997,
+    "p95": 295.20695,
+    "p99": 661.6198300000009,
+    "max": 22175.588
   },
-  "corpus_seconds_median": 8.062510806000319,
+  "corpus_seconds_median": 65.61653189699973,
   "corpus_seconds_runs": [
-    8.164810526999645,
-    7.7824762649997865,
-    8.062510806000319
+    65.57782275000045,
+    66.75992621899968,
+    65.61653189699973
   ],
   "seconds_per_file": {
-    "mean": 0.13887745884480393,
-    "max": 0.49719760500011034
+    "mean": 1.131043613568981,
+    "max": 3.9329517500000293
   },
   "probation_replay_ms": {
-    "mean": 4.337970431034483,
-    "max": 9.312904
+    "mean": 85.7900436724138,
+    "max": 161.903334
   },
   "component_us_per_point": {
-    "calibration.change": 4.817085292721472,
-    "calibration.residual": 5.976635409593741,
-    "change.score": 2.7711575492275613,
-    "change.update": 0.9808436675659923,
-    "residual.score": 2.6160387391014357,
-    "residual.update": 3.4166965707452785
+    "calibration.change": 8.413756331833122,
+    "calibration.lof": 9.209204853954729,
+    "calibration.residual": 12.402139793054962,
+    "calibration.subspace": 7.890465217730935,
+    "change.score": 4.703527917149879,
+    "change.update": 1.8156996502845193,
+    "lof.score": 98.1554573371149,
+    "lof.update": 0.2590171492780358,
+    "residual.score": 5.028599263314125,
+    "residual.update": 6.528275533135842,
+    "subspace.score": 25.096991966158114,
+    "subspace.update": 0.334607519483719
   },
   "component_note": "time inside each component per scored point (1 extra run with timers)",
+  "fast_engine": {
+    "available": true,
+    "corpus_seconds_median": 7.626882782999928,
+    "corpus_seconds_runs": [
+      7.626882782999928,
+      7.4757572240005175,
+      7.637187154999992
+    ],
+    "us_per_point_mean": 20.86367357026772,
+    "points_total": 365558,
+    "first_call_seconds_incl_compile_or_cache_load": 0.3566802690002078
+  },
   "baseline_single_point_us": {
-    "iforest": 5317.854316666667,
-    "lof": 278.7583233333333,
-    "ocsvm": 152.98201333333333,
-    "rolling_z": 9.90251
+    "iforest": 7335.895593333334,
+    "lof": 536.6116,
+    "ocsvm": 170.81931333333333,
+    "rolling_z": 25.828323333333334
   },
   "memory": {
     "file": "realKnownCause/machine_temperature_system_failure.csv",
     "points": 22695,
-    "stream_peak_heap_mb": 0.35,
-    "process_max_rss_mb": 255.8
+    "stream_peak_heap_mb": 9.05,
+    "process_max_rss_mb": 365.0
   }
 }

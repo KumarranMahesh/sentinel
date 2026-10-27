@@ -340,7 +340,7 @@ def categories_chart():
 
 
 def walkthrough(corpus, cfg, name="realKnownCause/machine_temperature_system_failure.csv"):
-    """How each detector sees one series: value, surprise of D1/D2/D3, fused surprise."""
+    """How each detector sees one series: value, surprise of each enabled detector, fused surprise."""
     s = corpus[name]
     r = run_sentinel(s, cfg)
     names = r["detector_names"]
@@ -349,7 +349,10 @@ def walkthrough(corpus, cfg, name="realKnownCause/machine_temperature_system_fai
     shade(axes[0], s, r["label"], r["state"])
     axes[0].plot(s.timestamps, s.values, color=INK2, lw=0.6)
     axes[0].set_ylabel("value", fontsize=8)
-    titles = {"residual": "D1 residual", "change": "D2 change (CUSUM)", "shape": "D3 shape (NN distance)"}
+    titles = {"residual": "D1 residual", "change": "D2 change (CUSUM)", "shape": "D3 shape (NN distance)",
+              "lof": "D4 LOF (recent window)", "shift": "D5 shift (KS)", "joint": "D6 joint (T²)",
+              "subspace": "D7 subspace (SSA residual)", "forecast": "D8 forecast (AR)",
+              "neural": "D9 neural (forecaster)"}
     for k, n in enumerate(names):
         ax = axes[1 + k]
         ax.plot(s.timestamps, r["detector_surprise"][:, k], color=BLUE, lw=0.6)

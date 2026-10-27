@@ -295,15 +295,12 @@ def _lof_score(lw, lw_head, kwin, paa, R, R2, kdist, lrd, nn, excl, wbuf, fbuf, 
     for t in range(m - 1):
         fbuf[m + t] = fbuf[t + 1] - fbuf[t]
     dim = 2 * m - 1
-    ff = 0.0
-    for t in range(dim):
-        ff += fbuf[t] * fbuf[t]
+    fv = np.ascontiguousarray(fbuf[:dim])
+    ff = np.dot(fv, fv)                               # same BLAS calls as the reference (R @ f, f @ f)
+    rf = np.dot(R, fv)
     cnt = 0
     for r in range(R.shape[0]):
-        acc = 0.0
-        for t in range(dim):
-            acc += R[r, t] * fbuf[t]
-        dd = R2[r] - 2.0 * acc + ff
+        dd = R2[r] - 2.0 * rf[r] + ff
         dd = math.sqrt(dd) if dd > 0.0 else 0.0
         dd = np.rint(dd * 1e10) / 1e10                # = np.round(d, 10) in the reference
         if r == excl:

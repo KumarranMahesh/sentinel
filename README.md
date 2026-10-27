@@ -31,7 +31,7 @@ windows is a false alert ([reports/metric_audit.md](reports/metric_audit.md)).
 | Precision / recall | 0.615 / 0.483 | 0.515 / 0.448 | 56 vs 52 of 116 windows; 35 vs 49 false alerts |
 | NAB score (standard profile) | **42.0** | 38.8 | NAB's own rule, checked against its `sweeper.py` |
 | Detection delay (median, fraction of window) | 0.50 (trigger median 2 points after NAB's labelled point) | 0.50 | ET does not reward earliness, so delay is reported separately |
-| Runtime per point | **{FAST_US} µs** compiled · {REF_US} µs streaming API | 23 µs (audit machine) | {MACHINE} |
+| Runtime per point | **20.9 µs** compiled · 181 µs streaming API | 4.9 µs compiled · 36 µs streaming API | same 2-core cloud Xeon, one core; D4 LOF is most of v3's cost (`results/runtime.json`, `runtime_v2.json`) |
 
 **v3 vs v2, same files, metric and scorer:** paired file bootstrap +0.062, 95% CI −0.001…+0.129, P(≤ 0) = 0.03 (in-sample; not significant at 95%). The clear gain is
 on the late halves (false alerts there 24 → 13); on held-out categories v3 and v2 are tied.
@@ -68,13 +68,13 @@ family is the most consistent on held-out categories. With 116 windows a differe
 
 | Engine | Use | Speed |
 |---|---|---|
-| `src/sentinel/pipeline.py` (`StreamingSentinel.update`) | true per-point streaming API, demo, reference | {REF_US} µs/point |
-| `src/sentinel/fast.py` (Numba) | replaying a stream: predictions, experiments, benchmarks | {FAST_US} µs/point incl. per-file setup and evidence |
+| `src/sentinel/pipeline.py` (`StreamingSentinel.update`) | true per-point streaming API, demo, reference | 181 µs/point (v2 config: 36) |
+| `src/sentinel/fast.py` (Numba) | replaying a stream: predictions, experiments, benchmarks | 20.9 µs/point incl. per-file setup and evidence (v2 config: 4.9) |
 
 The compiled engine is the same algorithm as one loop. It reproduces numpy's pairwise
 summation and linear quantile and CPython's float `sum`; on all 58 files its labels, states,
-top detectors and `events.jsonl` are identical to the reference, and surprise differs by at most
-6e-12 (`tests/test_fast.py`). `--engine auto` (default in `run_detector.py`) uses it when Numba
+top detectors, `events.jsonl` and surprise are identical to the reference (max difference 0
+with `configs/final.yaml`) (`tests/test_fast.py`). `--engine auto` (default in `run_detector.py`) uses it when Numba
 is installed and the config is supported; otherwise the reference runs.
 
 ### The score column
@@ -214,7 +214,7 @@ a window scores the same, which is why delay and NAB are always shown next to it
 ## Reproduce every number and figure
 
 ```bash
-pytest -q                                                       # {N_TESTS} tests incl. leakage + engine equivalence
+pytest -q                                                       # 72 tests incl. leakage + engine equivalence
 python scripts/download_nab.py --zip NAB-master.zip --results ARTime numenta contextOSE knncad earthgeckoSkyline relativeEntropy randomCutForest twitterADVec windowedGaussian
 python scripts/audit_dataset.py                                 # reports/dataset_audit.md
 python scripts/search.py --space configs/search_space.yaml      # v2 staged search (~52 min on 2 cores, cached)
