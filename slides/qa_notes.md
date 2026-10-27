@@ -64,3 +64,23 @@ Numbers: always quote them from `results/metrics_summary.json`, `results/search_
 
 **What would you do next?**
 - Multivariate inputs; learn season profiles online for more periods; per-detector adaptive thresholds learned from feedback; compare with time-series foundation models.
+
+## v3 additions (2026-10-27 evening)
+
+**What changed in v3, in one line?**
+- Two detectors added (D7 subspace: shape breaks against the probation's principal patterns; D4 LOF: unusual recent window), θ 3.5 → 5.0; a compiled engine with identical output; a score column that agrees with the labels. Selected under a held-out rule written down before the experiments (LOGBOOK L-0048, L-0055).
+
+**Is v3 really better than v2, or tuned to NAB?**
+- Late halves of every file (θ chosen on early halves): 0.527 → 0.571, false alerts 24 → 13. Held-out categories (θ chosen on the other six): 0.479 → 0.482, essentially a tie. In-sample paired bootstrap +0.062, 95% CI −0.001…+0.129. About ten candidate families were compared on the same labels, so expect some optimism. The honest claim: fewer false alerts at the same or better recall, not a proven large jump.
+
+**Why not the subspace detector alone? It had the better category score.**
+- D7 alone: 0.509 on held-out categories but 0.538 on late halves. The tie-break (late halves first) was fixed before the last results came in; we did not change it afterwards.
+
+**You tried deep learning?**
+- Yes: an MLP forecaster trained across files (each NAB file scored by the model that never saw its category; PyTorch training, NumPy inference). It made results slightly worse (0.469 vs 0.479). Also rejected: KS distribution shift, Hotelling T² alone, AR forecast, a count (Anscombe) transform. Every result is in `results/validation/summary.csv`.
+
+**Why is the compiled engine trustworthy?**
+- Same algorithm, one loop. It reproduces numpy's pairwise summation and quantile and CPython's float sum; on all 58 files the labels, states and events.jsonl are identical to the Python reference (`tests/test_fast.py`, LOGBOOK L-0053, L-0057).
+
+**What does `anomaly_score` mean now?**
+- In [0.5, 1] exactly on ANOMALOUS rows, below 0.5 elsewhere, ordered by surprise. So any evaluator that thresholds the score at 0.5 gets our labels, and NAB's own threshold sweep on the column gives the label-based NAB score instead of 0.

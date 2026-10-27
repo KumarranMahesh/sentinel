@@ -137,7 +137,7 @@ def parallel_map(fn, items, n_jobs=-1):
 
 
 def _sentinel_and_score(series, cfg):
-    res = run_sentinel(series, cfg)
+    res = run_auto(series, cfg)
     out = score_result(series, res["label"])
     out["n_events_logged"] = len(res["events"])
     return out

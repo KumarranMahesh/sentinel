@@ -4,17 +4,301 @@
 
 Sentinel reads a univariate time series one point at a time and, for every point, returns an
 anomaly score in [0, 1], a label (`NORMAL` / `ANOMALOUS`) and, for every alert, evidence that
-says why. Cheap causal detectors (spikes, level and variance shifts) are calibrated onto one
-common "surprise" scale, and an event state machine turns surprise into **one alert per
-incident**. No labels are used at inference; one global configuration for all files.
+says why. Four cheap causal detectors (spikes, level and variance shifts, shape breaks, unusual
+recent windows) are calibrated onto one common "surprise" scale, and an event state machine
+turns surprise into **one alert per incident**. No labels are used at inference; one global
+configuration for all files.
 
-> **Audit of 2026-10-27.** The project was re-validated on the supplied NAB archive and its
-> metric was changed. Earlier numbers (event F1 0.532, "NAB 40.7") used an overlap metric that
-> flagging every row beats, and a NAB convention that did not match the shipped file. They are
-> kept in `results/historical_v1/` and explained in [reports/metric_audit.md](reports/metric_audit.md).
-> Full audit: [reports/final_audit_report.md](reports/final_audit_report.md).
+> **v3 (2026-10-27, evening).** Two detectors added (D7 subspace, D4 LOF), threshold 3.5 → 5.0,
+> a compiled engine with identical output, a score column that agrees with the labels, and a
+> stricter validation protocol (held-out categories **and** the late half of every file), with
+> the adoption rule written down before the experiments. v2 numbers are kept further down;
+> v1 numbers in `results/historical_v1/`. Audit trail: `LOGBOOK.md` L-0048 onwards,
+> [reports/final_audit_report.md](reports/final_audit_report.md) Section 15.
 
-## Results (NAB v1.1, all 58 files, `configs/final.yaml`)
+## Results (NAB v1.1, all 58 files, `configs/final.yaml` = v3)
+
+**Metric.** The challenge names "event-based F1" but gives no definition or evaluator, so the
+primary metric is **our own**: **trigger-based event F1 (ET)**. An alert counts at its first row;
+a window is detected if an alert is triggered inside it; every alert triggered outside all
+windows is a false alert ([reports/metric_audit.md](reports/metric_audit.md)).
+
+| Metric | v3 | v2 | Note |
+|---|---|---|---|
+| ET F1, all files (in-sample) | **0.541** (CI {V3_CI}) | 0.479 | ~10 candidate families were compared on these labels: optimistic |
+| ET F1, held-out categories (θ-LOCO) | **0.482** | 0.479 | θ chosen on 6 categories, scored on the 7th |
+| ET F1, late half of every file | **0.571** | 0.527 | θ chosen on the early halves, scored on the late halves |
+| Precision / recall | 0.615 / 0.483 | 0.515 / 0.448 | 56 vs 52 of 116 windows; 35 vs 49 false alerts |
+| NAB score (standard profile) | {V3_NAB} | 38.8 | NAB's own rule, checked against its `sweeper.py` |
+| Detection delay (median, fraction of window) | {V3_DELAY} | 0.50 | ET does not reward earliness, so delay is reported separately |
+| Runtime per point | **{FAST_US} µs** compiled · {REF_US} µs streaming API | 23 µs (audit machine) | {MACHINE} |
+
+**v3 vs v2, same files, metric and scorer:** paired file bootstrap {V3_BOOT}. The clear gain is
+on the late halves (false alerts there 24 → 13); on held-out categories v3 and v2 are tied.
+
+### How v3 was chosen
+
+Every candidate was run as a *family* over θ ∈ {3.5, 4.0, 4.5, 5.0, 5.5} and compared with the
+current system under the same protocol (`scripts/validate.py`, `src/sentinel/validation.py`).
+Adoption rule, fixed before the runs (LOGBOOK L-0048): beat the current system on held-out
+categories **and** on the late halves, with a positive paired-bootstrap mean. Tie-break among
+passing families, fixed before the last results (L-0055): best late-half score.
+
+| Candidate (added to D1 + D2) | In-sample | Held-out categories | Late halves | Adopted |
+|---|---|---|---|---|
+| none (v2) | 0.479 | 0.479 | 0.527 | – |
+| **D7 subspace + D4 LOF (v3)** | **0.541** | **0.482** | **0.571** | **yes (tie-break)** |
+| D7 subspace (lag 32) | 0.532 | 0.509 | 0.538 | passes |
+| D7 subspace + D6 Hotelling T² | 0.523 | 0.496 | 0.531 | passes |
+| D7 subspace + D9 neural | 0.530 | 0.504 | 0.528 | passes |
+| D8 AR forecast | 0.482 | 0.464 | 0.541 | no |
+| D6 Hotelling T² | 0.541 | 0.485 | 0.527 | no |
+| D7 subspace, lag also tuned | 0.533 | 0.476 | 0.538 | no |
+| D4 LOF | 0.523 | 0.500 | 0.523 | no |
+| D9 neural forecaster | 0.469 | 0.469 | 0.514 | no |
+| count (Anscombe) transform | 0.389 | 0.389 | 0.449 | no |
+| D5 KS shift (θ 3.0–4.5, first round) | 0.478 | 0.435 | 0.505 | no |
+
+Full table with bootstrap CIs: `results/validation/summary.csv`. Reading it honestly: most
+candidates gain 0.04–0.06 in-sample and then fail one of the two held-out checks; the D7-only
+family is the most consistent on held-out categories. With 116 windows a difference below
+~0.05 is within noise.
+
+### Two engines, same output
+
+| Engine | Use | Speed |
+|---|---|---|
+| `src/sentinel/pipeline.py` (`StreamingSentinel.update`) | true per-point streaming API, demo, reference | {REF_US} µs/point |
+| `src/sentinel/fast.py` (Numba) | replaying a stream: predictions, experiments, benchmarks | {FAST_US} µs/point incl. per-file setup and evidence |
+
+The compiled engine is the same algorithm as one loop. It reproduces numpy's pairwise
+summation and linear quantile and CPython's float `sum`; on all 58 files its labels, states,
+top detectors and `events.jsonl` are identical to the reference, and surprise differs by at most
+6e-12 (`tests/test_fast.py`). `--engine auto` (default in `run_detector.py`) uses it when Numba
+is installed and the config is supported; otherwise the reference runs.
+
+### The score column
+
+`anomaly_score` lies in [0.5, 1] exactly on ANOMALOUS rows and below 0.5 elsewhere, in surprise
+order (`output.score: alert`). An evaluator that thresholds the score at 0.5 gets exactly our
+labels, and NAB's own threshold sweep on the column now scores the same as the labels (it gave
+0.0 for the v2 column, which stayed high for long stretches). The raw surprise is still in the
+`surprise` column.
+
+### Optional detectors (all causal, all tested; off unless enabled)
+
+D3 shape (nearest-neighbour distance), D4 LOF, D5 distribution shift (two-sample KS), D6 joint
+deviation (robust Hotelling T² of level/shift/spread/jump), D7 subspace (singular-spectrum
+residual of the newest lag vector), D8 AR forecast (recursive least squares), D9 neural
+forecaster (MLP, trained by `scripts/train_neural.py`; `models/neural_wo_<category>.npz` are the
+held-out models, `models/neural_all.npz` is for new files). GPU training steps for Windows:
+[docs/GPU_TRAINING.md](docs/GPU_TRAINING.md).
+
+## Quick start
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python scripts/download_nab.py --zip path/to/NAB-master.zip   # or without --zip: downloads the pinned commit
+pytest -q
+```
+
+Run on the whole corpus and score it:
+
+```bash
+python scripts/run_detector.py --detector sentinel --config configs/final.yaml --out predictions/
+python scripts/evaluate.py --pred predictions/ --out results/
+```
+
+The submission zip ships `predictions/all_predictions.csv` and `predictions/events.jsonl`;
+`evaluate.py` scores the per-file folder that `run_detector.py` writes (about 9 s).
+
+Run on any `timestamp,value` CSV (for hidden test files; `--unknown-length` = true streaming):
+
+```bash
+python scripts/run_stream.py --input some_new_file.csv --output out.csv --events out_events.jsonl --unknown-length
+```
+
+Demo (local replay of a stored series through the streaming detector):
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+## Environment
+
+- Python 3.11+ (audit runs: Python 3.13.17, Linux, 2 CPU cores; v1 was developed on Windows 11,
+  Python 3.11.9). CPU only for the detector; a GPU is only useful to retrain the optional neural
+  channel (`requirements-train.txt`, [docs/GPU_TRAINING.md](docs/GPU_TRAINING.md) — exact Windows +
+  CUDA steps). Exact package versions in `requirements.txt` (Numba for the compiled engine).
+- Data: NAB, commit `ea702d75cc2258d9d7dd35ca8e5e2539d71f3140` (58 files, 7 categories, 116
+  windows, 365,558 points). `scripts/download_nab.py --zip NAB-master.zip` installs it from the
+  archive (or downloads the archive of that commit) and checks every file against the SHA-256
+  manifest `configs/nab_manifest.json`. Raw data is not committed. `python scripts/audit_dataset.py`
+  writes `reports/dataset_audit.md`.
+- No pretrained or fine-tuned model. Each file starts empty; the detector learns "normal" online
+  from that file's first 15% (max 750 points), without labels. Labels are used only offline, to
+  pick global settings; the v3 held-out protocols measure that choice. (The optional D9 neural
+  channel is the one learned model: self-supervised on series values, labels never read.)
+
+## How it works
+
+```
+stream (timestamp, value)
+   │  probation (first P points): buffer, pick season mode + scale floor, replay once
+   ▼
+ D1 residual  : |x − (rolling median + hour-of-day/week offset)| / σ
+ D2 change    : two-sided CUSUM on a slow (deseasonalized) baseline + a variance CUSUM
+ D4 LOF       : local outlier factor of the last 16 values (+ differences) vs probation windows
+ D7 subspace  : newest 32-value window minus its mean, distance from the principal subspace
+                of the probation windows (singular spectrum analysis, 90% variance)
+ (D3, D5, D6, D8, D9: available, off in final.yaml)
+   ▼
+ calibration  : raw score → tail p-value vs that detector's recent NORMAL scores
+                (empirical + exponential tail beyond q95) → U = −log10 p
+ fusion       : U = max_k U_k − log10(K)  (Bonferroni), Ū = mean over the last 5 points
+   ▼
+ event logic  : NORMAL → EVENT when Ū ≥ θ_enter (5.0); stay while Ū ≥ 4.5 and length < 200;
+                then 400 points COOLDOWN. Learning pauses during an event; after a lasting
+                shift the detectors re-baseline.
+   ▼
+ output       : anomaly_score (≥ 0.5 exactly on ANOMALOUS rows), label (ANOMALOUS on the trigger row only),
+                top detector, event id, state + one evidence record per alert
+```
+
+- **Calibration** makes detectors comparable and θ mean the same on every series
+  (Ū = 5.0 ≈ "1 in 100,000 under recent normal behaviour", after the Bonferroni term for 4 detectors).
+- **Event logic** is the precision lever: hysteresis keeps one incident as one event, the cooldown
+  blocks repeat alerts on the aftermath, pause + re-baseline stop endless alerts after a shift.
+- **Evidence**: at the trigger, each detector's numbers are frozen into JSON and one sentence, e.g.
+  *"Sustained downward shift: recent mean 50.95 vs baseline 64.75 for 15 points."*
+
+## Metrics (all micro-averaged over files; definitions in `reports/metric_audit.md`)
+
+| Metric | Role | Definition |
+|---|---|---|
+| **ET** trigger-based event F1 | primary (ours) | above; precision = triggers inside a window / (those + triggers outside all windows); extra triggers inside a detected window ignored, as in NAB |
+| Delay | reported | first trigger inside the window − window start (points, minutes, fraction of window) and − labelled point |
+| NAB score | reported (NAB's metric) | standard profile, every ANOMALOUS row a detection; identical to NAB's own code |
+| E1 overlap event F1 | secondary (v1) | alert correct if it overlaps a window; **flagging every row scores 0.945**, so not used for selection |
+| Composite / point-wise F1 | secondary | event recall × point precision / per-row F1 |
+
+Why ET: flag-everything 0.000, random 1% of rows 0.057, every-100th row 0.063, textbook rolling
+z-score 0.039 (every row) / 0.136 (one trigger per event). Limitation: a trigger anywhere inside
+a window scores the same, which is why delay and NAB are always shown next to it.
+
+## Experiment strategy
+
+- **One global config**, no per-file tuning.
+- **Staged grid search** (`scripts/search.py`): detector parameters → threshold/smoothing →
+  cooldown/max length → structural options; objective = micro ET F1; final pick by a pre-set
+  stability rule (top 5 within 0.01 → lowest per-category spread). 231 configs, every one cached
+  (key = data fingerprint + code hash + config) and logged in `experiments/runs.csv`.
+- **Held-out checks**: (a) θ-LOCO, where only θ is chosen on 6 categories and scored on the 7th,
+  the same protocol for Sentinel and every calibrated baseline; (b) nested LOCO, where the whole
+  staged search is re-run without the scored category. (b) was run for 3 of 7 categories
+  (about 12–30 min per fold on 2 cores) and is reported as partial. The "pool LOCO" (0.355,
+  choosing among configs that an all-labels search produced) is optimistic and is not used
+  for claims.
+- **Baselines** (`scripts/run_baselines.py`): null, random, rolling z-score, Isolation Forest, LOF,
+  One-Class SVM; each raw, with Sentinel's event logic, and with Sentinel's calibration + event
+  logic; same single-trigger-row label convention; LOCO-chosen thresholds in the held-out column.
+- **Ablations** (`scripts/ablation.py`), **runtime** (`scripts/benchmark_runtime.py`), **probation
+  look-ahead** (`scripts/probation_sensitivity.py`).
+- **v3 candidate families** (`scripts/validate.py`): each candidate × θ ∈ {3.5 … 5.5} against the
+  current family under θ-LOCO, a within-file time split (θ chosen on the early half of every file,
+  scored on the late half) and a paired file bootstrap; adoption and tie-break rules fixed in
+  advance (LOGBOOK L-0048, L-0055). Results: `results/validation/*.json`, `summary.csv`.
+
+## Reproduce every number and figure
+
+```bash
+pytest -q                                                       # {N_TESTS} tests incl. leakage + engine equivalence
+python scripts/download_nab.py --zip NAB-master.zip --results ARTime numenta contextOSE knncad earthgeckoSkyline relativeEntropy randomCutForest twitterADVec windowedGaussian
+python scripts/audit_dataset.py                                 # reports/dataset_audit.md
+python scripts/search.py --space configs/search_space.yaml      # v2 staged search (~52 min on 2 cores, cached)
+for c in artificialNoAnomaly artificialWithAnomaly realAdExchange; do
+  python scripts/search.py --fold $c; done                      # nested LOCO folds run here (~50 min on 2 cores)
+python scripts/search.py --aggregate-nested --allow-partial     # -> nested_loco_partial (add the other 4 categories for the full version)
+python scripts/run_detector.py --detector sentinel --config configs/final.yaml --out predictions/
+python scripts/evaluate.py --pred predictions/ --out results/
+python scripts/metric_audit.py --pred predictions --name sentinel_final
+python scripts/nab_crosscheck.py --pred predictions --name sentinel_final
+python scripts/probation_sensitivity.py
+python scripts/run_baselines.py                                 # results/baselines_comparison.csv
+python scripts/ablation.py                                      # results/ablation.csv
+python scripts/benchmark_runtime.py --config configs/final.yaml  # both engines
+# v3 candidate families (each prints in-sample / θ-LOCO / late-half ET and the adoption verdict)
+T="--thetas 3.5 4.0 4.5 5.0 5.5"; B="--base-config configs/v2_final.yaml --config configs/v2_final.yaml"
+python scripts/validate.py --name w_subspace32 $T $B --set subspace.enabled=true
+python scripts/validate.py --name w_subspace_lof $T $B --set subspace.enabled=true lof.enabled=true
+python scripts/validate.py --name w_lof_full $T $B --set lof.enabled=true
+python scripts/validate.py --name w_joint $T $B --set joint.enabled=true
+python scripts/validate.py --name w_forecast $T $B --set forecast.enabled=true
+python scripts/validate.py --name w_counts $T $B --set transform.counts=anscombe
+python scripts/validate.py --name w_neural $T $B --set neural.enabled=true
+python scripts/validate.py --name final $T --base-config configs/v2_final.yaml --config configs/final.yaml
+python scripts/v3_summary.py                                    # results/validation/summary.csv/.md
+python scripts/train_neural.py --loco --all --epochs 20         # optional; GPU: docs/GPU_TRAINING.md
+python scripts/score_nab_published.py                           # results/nab_published.csv
+python scripts/make_figures.py                                  # figures/*.png
+python slides/make_slides.py                                    # slides/Sentinel_Challenge2.pptx
+```
+
+`scripts/candidates.py` (v2's θ-LOCO and Sentinel ∪ LOF check, `results/candidates.json`) is
+superseded by `scripts/validate.py`; its stored results describe v2.
+Comparison with v1 additionally needs v1's predictions (`git worktree add ../v1 e2333bc`, run
+`run_detector.py` there with its `configs/final.yaml`, then `scripts/compare_runs.py`).
+Seeds: Sentinel is deterministic; baselines and bootstraps use seed 42.
+
+## Output formats
+
+`predictions/per_file/<category>/<file>.csv` and `predictions/all_predictions.csv`:
+
+| column | meaning |
+|---|---|
+| `file`, `timestamp`, `value` | from the input |
+| `anomaly_score` | 1 − 10^(−surprise), in [0, 1] |
+| `surprise` | smoothed fused surprise Ū (−log10 p) |
+| `label`, `label_int` | `ANOMALOUS`/1 on the trigger row of each alert, else `NORMAL`/0 (`events.label_len: null` labels whole events) |
+| `top_detector` | `residual` / `change` / `shape` / `none` |
+| `event_id` | alert number within the file, on every row of the open event |
+| `state` | `PROBATION` / `NORMAL` / `EVENT` / `COOLDOWN` |
+
+`predictions/events.jsonl`: one JSON object per alert (start/end, length, peak, top detector,
+each detector's surprise and evidence at the trigger, re-baseline flag, surprise trace, sentence).
+The organizers' schema was not supplied; `scripts/export_predictions.py --schema configs/export_schema.yaml`
+remaps columns.
+
+## Repository
+
+```
+configs/        default.yaml, search_space.yaml, final.yaml (v3), v2_final.yaml, nab_manifest.json,
+                export_schema.yaml, historical_v1_final.yaml
+src/sentinel/   io, nab_data, preprocess, robust, detectors/ (D1-D9), calibration, fusion, events,
+                evidence, pipeline (reference engine), fast (compiled engine), neural, runner,
+                search, validation, evaluation, baselines/, metrics/ (trigger, event F1,
+                point-wise, delay, NAB)
+models/         neural_*.npz (optional D9 weights, NumPy format)
+scripts/        download_nab, audit_dataset, run_detector, run_stream, evaluate, search, run_baselines,
+                ablation, benchmark_runtime, metric_audit, nab_crosscheck, compare_runs,
+                probation_sensitivity, score_nab_published, make_figures, screenshot_demo,
+                validate, v3_summary, train_neural, ...
+app/            streamlit_app.py (demo)
+tests/          metrics, leakage, detectors, calibration, events, pipeline, fast engine, validation
+experiments/    runs.csv (v2 search + nested folds), runs_v1_historical.csv
+results/        current results; historical_v1/ = shipped v1 results (superseded)
+reports/        final_audit_report.md, metric_audit.md, dataset_audit.md, demo_script.md
+figures/        charts; historical_v1/ = v1 charts
+slides/         Sentinel_Challenge2.pptx, make_slides.py, qa_notes.md
+docs/           PROBLEM_STATEMENT.md, GPU_TRAINING.md (Windows + CUDA run guide)
+PLAN.md, LOGBOOK.md
+```
+
+## v2 results (previous submission, `configs/v2_final.yaml`, kept for comparison)
+
+> Everything in this section describes v2 (D1 + D2, θ 3.5). It is superseded by the v3 results above; the numbers are unchanged from the v2 README.
 
 **Metric.** The challenge names "event-based F1" but gives no definition or evaluator, so the
 primary metric is **our own**: **trigger-based event F1 (ET)**. An alert counts at its first row;
@@ -79,7 +363,7 @@ Published NAB detectors re-scored from NAB's result files with ET at their own N
 gives each file's full min/max in advance) and their thresholds were tuned on all labels; a
 causal CAD OSE rerun under ET was **not verified** in this audit.
 
-### What we learned (honest reading)
+### What we learned from v2 (honest reading)
 
 1. **Calibration + event logic carry most of the value.** Any detector fed through them improves
    sharply (LOF 0.121 → 0.467; rolling z 0.039 → 0.332), and LOF with them is within 0.012 of
@@ -109,205 +393,29 @@ detector (CAD OSE, non-causal) reaches 0.676 at NAB's threshold, and an overlap 
 gives 0.945 to "flag every row", so an unqualified "0.71 F1" cannot be ranked against our
 numbers. Our best defensible result is ET F1 0.479 all files / 0.381 partial nested held-out.
 
-## Quick start
-
-```bash
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python scripts/download_nab.py --zip path/to/NAB-master.zip   # or without --zip: downloads the pinned commit
-pytest -q
-```
-
-Run on the whole corpus and score it:
-
-```bash
-python scripts/run_detector.py --detector sentinel --config configs/final.yaml --out predictions/
-python scripts/evaluate.py --pred predictions/ --out results/
-```
-
-The submission zip ships `predictions/all_predictions.csv` and `predictions/events.jsonl`;
-`evaluate.py` scores the per-file folder that `run_detector.py` writes (about 9 s).
-
-Run on any `timestamp,value` CSV (for hidden test files; `--unknown-length` = true streaming):
-
-```bash
-python scripts/run_stream.py --input some_new_file.csv --output out.csv --events out_events.jsonl --unknown-length
-```
-
-Demo (local replay of a stored series through the streaming detector):
-
-```bash
-streamlit run app/streamlit_app.py
-```
-
-## Environment
-
-- Python 3.11+ (audit runs: Python 3.13.17, Linux, 2 CPU cores; v1 was developed on Windows 11,
-  Python 3.11.9). CPU only; no GPU needed. Exact package versions in `requirements.txt`.
-- Data: NAB, commit `ea702d75cc2258d9d7dd35ca8e5e2539d71f3140` (58 files, 7 categories, 116
-  windows, 365,558 points). `scripts/download_nab.py --zip NAB-master.zip` installs it from the
-  archive (or downloads the archive of that commit) and checks every file against the SHA-256
-  manifest `configs/nab_manifest.json`. Raw data is not committed. `python scripts/audit_dataset.py`
-  writes `reports/dataset_audit.md`.
-- No pretrained or fine-tuned model. Each file starts empty; the detector learns "normal" online
-  from that file's first 15% (max 750 points), without labels. Labels are used only offline, to
-  pick 11 global settings, and nested LOCO measures that choice.
-
-## How it works
-
-```
-stream (timestamp, value)
-   │  probation (first P points): buffer, pick season mode + scale floor, replay once
-   ▼
- D1 residual  : |x − (rolling median + hour-of-day/week offset)| / σ
- D2 change    : two-sided CUSUM on a slow (deseasonalized) baseline + a variance CUSUM
- D3 shape     : nearest past z-normalized window (available, off in final.yaml)
-   ▼
- calibration  : raw score → tail p-value vs that detector's recent NORMAL scores
-                (empirical + exponential tail beyond q95) → U = −log10 p
- fusion       : U = max_k U_k − log10(K)  (Bonferroni), Ū = mean over the last 5 points
-   ▼
- event logic  : NORMAL → EVENT when Ū ≥ θ_enter (3.5); stay while Ū ≥ 3.0 and length < 200;
-                then 400 points COOLDOWN. Learning pauses during an event; after a lasting
-                shift the detectors re-baseline.
-   ▼
- output       : anomaly_score = 1 − 10^(−Ū), label (ANOMALOUS on the trigger row only),
-                top detector, event id, state + one evidence record per alert
-```
-
-- **Calibration** makes detectors comparable and θ mean the same on every series
-  (Ū = 3.5 ≈ "1 in 3,000 under recent normal behaviour").
-- **Event logic** is the precision lever: hysteresis keeps one incident as one event, the cooldown
-  blocks repeat alerts on the aftermath, pause + re-baseline stop endless alerts after a shift.
-- **Evidence**: at the trigger, each detector's numbers are frozen into JSON and one sentence, e.g.
-  *"Sustained downward shift: recent mean 50.95 vs baseline 64.75 for 15 points."*
-
-## Metrics (all micro-averaged over files; definitions in `reports/metric_audit.md`)
-
-| Metric | Role | Definition |
-|---|---|---|
-| **ET** trigger-based event F1 | primary (ours) | above; precision = triggers inside a window / (those + triggers outside all windows); extra triggers inside a detected window ignored, as in NAB |
-| Delay | reported | first trigger inside the window − window start (points, minutes, fraction of window) and − labelled point |
-| NAB score | reported (NAB's metric) | standard profile, every ANOMALOUS row a detection; identical to NAB's own code |
-| E1 overlap event F1 | secondary (v1) | alert correct if it overlaps a window; **flagging every row scores 0.945**, so not used for selection |
-| Composite / point-wise F1 | secondary | event recall × point precision / per-row F1 |
-
-Why ET: flag-everything 0.000, random 1% of rows 0.057, every-100th row 0.063, textbook rolling
-z-score 0.039 (every row) / 0.136 (one trigger per event). Limitation: a trigger anywhere inside
-a window scores the same, which is why delay and NAB are always shown next to it.
-
-## Experiment strategy
-
-- **One global config**, no per-file tuning.
-- **Staged grid search** (`scripts/search.py`): detector parameters → threshold/smoothing →
-  cooldown/max length → structural options; objective = micro ET F1; final pick by a pre-set
-  stability rule (top 5 within 0.01 → lowest per-category spread). 231 configs, every one cached
-  (key = data fingerprint + code hash + config) and logged in `experiments/runs.csv`.
-- **Held-out checks**: (a) θ-LOCO, where only θ is chosen on 6 categories and scored on the 7th,
-  the same protocol for Sentinel and every calibrated baseline; (b) nested LOCO, where the whole
-  staged search is re-run without the scored category. (b) was run for 3 of 7 categories
-  (about 12–30 min per fold on 2 cores) and is reported as partial. The "pool LOCO" (0.355,
-  choosing among configs that an all-labels search produced) is optimistic and is not used
-  for claims.
-- **Baselines** (`scripts/run_baselines.py`): null, random, rolling z-score, Isolation Forest, LOF,
-  One-Class SVM; each raw, with Sentinel's event logic, and with Sentinel's calibration + event
-  logic; same single-trigger-row label convention; LOCO-chosen thresholds in the held-out column.
-- **Ablations** (`scripts/ablation.py`), **runtime** (`scripts/benchmark_runtime.py`), **probation
-  look-ahead** (`scripts/probation_sensitivity.py`: detector told 750 points on every file → ET
-  0.474 vs 0.479).
-
-## Reproduce every number and figure
-
-```bash
-pytest -q                                                       # 57 tests incl. leakage
-python scripts/download_nab.py --zip NAB-master.zip --results ARTime numenta contextOSE knncad earthgeckoSkyline relativeEntropy randomCutForest twitterADVec windowedGaussian
-python scripts/audit_dataset.py                                 # reports/dataset_audit.md
-python scripts/search.py --space configs/search_space.yaml      # ~52 min on 2 cores, cached
-for c in artificialNoAnomaly artificialWithAnomaly realAdExchange; do
-  python scripts/search.py --fold $c; done                      # nested LOCO folds run here (~50 min on 2 cores)
-python scripts/search.py --aggregate-nested --allow-partial     # -> nested_loco_partial (add the other 4 categories for the full version)
-python scripts/run_detector.py --detector sentinel --config configs/final.yaml --out predictions/
-python scripts/evaluate.py --pred predictions/ --out results/
-python scripts/metric_audit.py --pred predictions --name sentinel_final
-python scripts/nab_crosscheck.py --pred predictions --name sentinel_final
-python scripts/probation_sensitivity.py
-python scripts/candidates.py                                    # theta-LOCO + Sentinel/LOF combinations
-python scripts/run_baselines.py                                 # results/baselines_comparison.csv
-python scripts/ablation.py                                      # results/ablation.csv
-python scripts/benchmark_runtime.py --config configs/final.yaml
-python scripts/score_nab_published.py                           # results/nab_published.csv
-python scripts/make_figures.py                                  # figures/*.png
-python slides/make_slides.py                                    # slides/Sentinel_Challenge2.pptx
-```
-
-Comparison with v1 additionally needs v1's predictions (`git worktree add ../v1 e2333bc`, run
-`run_detector.py` there with its `configs/final.yaml`, then `scripts/compare_runs.py`).
-Seeds: Sentinel is deterministic; baselines and bootstraps use seed 42.
-
-## Output formats
-
-`predictions/per_file/<category>/<file>.csv` and `predictions/all_predictions.csv`:
-
-| column | meaning |
-|---|---|
-| `file`, `timestamp`, `value` | from the input |
-| `anomaly_score` | 1 − 10^(−surprise), in [0, 1] |
-| `surprise` | smoothed fused surprise Ū (−log10 p) |
-| `label`, `label_int` | `ANOMALOUS`/1 on the trigger row of each alert, else `NORMAL`/0 (`events.label_len: null` labels whole events) |
-| `top_detector` | `residual` / `change` / `shape` / `none` |
-| `event_id` | alert number within the file, on every row of the open event |
-| `state` | `PROBATION` / `NORMAL` / `EVENT` / `COOLDOWN` |
-
-`predictions/events.jsonl`: one JSON object per alert (start/end, length, peak, top detector,
-each detector's surprise and evidence at the trigger, re-baseline flag, surprise trace, sentence).
-The organizers' schema was not supplied; `scripts/export_predictions.py --schema configs/export_schema.yaml`
-remaps columns.
-
-## Repository
-
-```
-configs/        default.yaml, search_space.yaml, final.yaml, nab_manifest.json, export_schema.yaml,
-                historical_v1_final.yaml
-src/sentinel/   io, nab_data, preprocess, robust, detectors/ (D1 D2 D3), calibration, fusion, events,
-                evidence, pipeline, runner, search, evaluation, baselines/, metrics/ (trigger, event
-                F1, point-wise, delay, NAB)
-scripts/        download_nab, audit_dataset, run_detector, run_stream, evaluate, search, run_baselines,
-                ablation, benchmark_runtime, metric_audit, nab_crosscheck, compare_runs,
-                probation_sensitivity, score_nab_published, make_figures, screenshot_demo, ...
-app/            streamlit_app.py (demo)
-tests/          metrics, leakage, detectors, calibration, events, pipeline
-experiments/    runs.csv (v2 search + nested folds), runs_v1_historical.csv
-results/        current results; historical_v1/ = shipped v1 results (superseded)
-reports/        final_audit_report.md, metric_audit.md, dataset_audit.md, demo_script.md
-figures/        charts; historical_v1/ = v1 charts
-slides/         Sentinel_Challenge2.pptx, make_slides.py, qa_notes.md
-docs/           PROBLEM_STATEMENT.md
-PLAN.md, LOGBOOK.md
-```
 
 ## Limitations
 
 - **The challenge metric is unknown.** ET is our definition; the organizers' hidden evaluator may
   differ. If it rewards long overlapping alerts, set `events.label_len: null` (whole events
   labelled, detection unchanged); if it charges every flagged row, keep the default.
-- **Held-out evidence is partial**: nested LOCO covers 3 of 7 categories (20 of 116 windows).
-  With 116 windows, ET F1 has a 95% CI of about ±0.09, so differences below ~0.05 between
-  configs are not meaningful.
-- **Probation needs the file length** (NAB's rule). With a fixed 750 points, ET is 0.474 instead
-  of 0.479 (`results/probation_sensitivity.json`).
+- **v3's held-out gain is uneven**: late halves 0.527 → 0.571, held-out categories 0.479 → 0.482
+  (a tie). About ten families were compared on the same labels, so the chosen one is optimistic.
+  With 116 windows, ET F1 has a 95% CI of about ±0.09; differences below ~0.05 are not meaningful.
+  The v2 nested LOCO (3 of 7 categories) was not re-run for v3.
+- **Probation needs the file length** (NAB's rule); effect measured in
+  `results/probation_sensitivity.json` ({PROB_SENS}).
 - **NAB labels are imperfect** (Wu & Keogh): some false alerts are clear unlabelled events and
   some windows show no visible change.
-- **Misses dominate** (64 of 116 windows), worst on Traffic and Known-cause series. Bursty
-  Tweets/AWS series give most false alerts (23 and 9 of 49).
-- The `anomaly_score` column is a smoothed surprise. It stays high for long stretches, so NAB's own
-  threshold sweep on it scores 0.0 (best = never alert). Use the binary label for NAB.
+- **Misses dominate** ({V3_MISSES} of 116 windows), see `results/error_analysis.json`.
+- **The neural channel did not help** on NAB (0.469 vs 0.479) and is off; GPU retraining
+  will change its weights slightly, not this conclusion.
 - **Published NAB detectors** (CAD OSE 0.676, HTM 0.527 under ET) score higher or similar, but
   they are not causal (each file's min/max is given in advance) and their thresholds are tuned on
   all labels. A causal re-run under ET was not done in this audit.
 - **Not done**: no demo video was recorded (script: `reports/demo_script.md`; screenshot:
-  `figures/demo_streamlit.png`). The team name is not set. No GPU was used: the runs were on a
-  cloud CPU container, and the per-point streaming workload would not benefit.
+  `figures/demo_streamlit.png`). The team name is not set. The neural models shipped were trained
+  on a cloud CPU; `docs/GPU_TRAINING.md` retrains them on your GPU.
 
 References: NAB (github.com/numenta/NAB); Ahmad et al. 2017, *Neurocomputing*; Wu & Keogh,
 arXiv:2009.13807; Kim et al., AAAI 2022; Siffer et al., KDD 2017 (peaks-over-threshold).
