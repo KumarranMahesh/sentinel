@@ -45,7 +45,7 @@ def cache_prefix():
     pkg = ROOT / "src" / "sentinel"
     files = [p for p in pkg.rglob("*.py")
              if p.parent.name != "baselines"
-             and p.name not in ("search.py", "evaluation.py", "nab_data.py")]
+             and p.name not in ("search.py", "evaluation.py", "nab_data.py", "validation.py")]
     for p in sorted(files):
         h.update(p.relative_to(ROOT).as_posix().encode())
         h.update(p.read_bytes())
