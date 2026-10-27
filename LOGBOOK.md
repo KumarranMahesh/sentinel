@@ -191,3 +191,41 @@ marked `~`.
 **L-0038** · 2026-10-27T00:42+05:30 · Claude Opus 5.5 · SLIDES · T10.2
 - Files: `slides/make_slides.py`, `slides/Sentinel_Challenge2.pptx`
 - What: slide 1 team line now lists Kommana Srinivasa Rao, Panuganti Bhanu, Vishnu Datta, Kumarran Mahesh (as in the README, edited by the user on GitHub); team name still TBD. Text box widened to 12.1 in so the line fits. Re-rendered with PowerPoint and checked; pptx validator passed.
+
+---
+
+## Audit and migration to the supplied NAB archive (2026-10-27)
+
+Entries below were made during a full audit of the project (inputs: `sentinel-main.zip`,
+upstream commit `14970bddbe68ddcdaf20e9a4aaa397dfef148a54`, and `NAB-master.zip`). Work ran on
+Linux (Python 3.13.17, 2 vCPUs, 7.7 GB RAM) with the pinned `requirements.txt`. Findings and
+evidence are collected in `reports/final_audit_report.md`.
+
+**L-0039** · ~2026-10-27T11:32+05:30 · Claude Opus 5.5 · SETUP / AUDIT · —
+- Inputs kept read-only; SHA-256: `NAB-master.zip` 560c8616…8bd5, `sentinel-main.zip` 98cb3556…4cd8. No path-traversal entries in either archive. Zip comments give the commits: NAB `ea702d75cc2258d9d7dd35ca8e5e2539d71f3140` (the commit the project already used), Sentinel `14970bdd…`.
+- All pinned packages install on Python 3.13.17. Test suite before any change: 35 passed, 1 skipped (NAB not installed).
+
+**L-0040** · ~2026-10-27T11:36+05:30 · Claude Opus 5.5 · DATA · T1.1
+- Files: `src/sentinel/nab_data.py` (new), `scripts/download_nab.py` (rewritten), `configs/nab_manifest.json` (new), `scripts/audit_dataset.py` (new), `reports/dataset_audit.md`, `results/dataset_audit.json`.
+- What: the supplied archive is now the data source of record. `download_nab.py --zip NAB-master.zip` extracts only data/labels/config/nab (+ optional results/<det>) without nesting, writes `NAB_SOURCE.json` (archive SHA-256, commit) and verifies every CSV and label file against the committed manifest (SHA-256 per file, fingerprint `8c0d49f915f8`). Without `--zip` it downloads the archive of the pinned commit (no more moving `master` branch, no git clone).
+- Audit result: 58 files, 365,558 rows, 7 categories, 120 label points, 116 windows (all scored, none dropped by probation), 6 files without windows, 49 duplicate timestamps in 8 files, 1 backward step, 0 missing / non-finite values, all window limits and label points resolve to exact rows, 1 label point lies outside its file's windows (`iio_us-east-1_i-a2eb1cd9_NetworkIn`). Window rows = 10.1% of scored rows. Row counts equal the historical `results/dataset_stats.csv` for 58/58 files.
+
+**L-0041** · ~2026-10-27T11:38+05:30 · Claude Opus 5.5 · EXP · reproduction
+- Unchanged code + `configs/final.yaml` on the archive data: E1 F1 0.532, P 0.500, R 0.569, 66/116, 74 FP, NAB(onsets) 40.7, point-wise F1 0.220, CI 0.453–0.607: identical to the committed `results/metrics_summary.json`.
+- Committed `predictions/events.jsonl` was stale (predates the `deseasonalized` evidence field of L-0027); one trace value of one event differs in the 3rd decimal (Windows vs Linux BLAS). Labels identical.
+
+**L-0042** · ~2026-10-27T11:42+05:30 · Claude Opus 5.5 · EVAL / DECISION · metric audit
+- Files: `src/sentinel/metrics/trigger.py` (new), `runner.py`, `evaluation.py`, `scripts/metric_audit.py` (new).
+- No official evaluator or exact metric exists in either archive or the problem statement (user: "assume as we want"). Degenerate strategies scored on all 58 files (`scripts/metric_audit.py`): flag every row → E1 F1 0.945 (P 0.897, R 1.0) but official-convention NAB −13,695; one 800-row alert every 2,000 rows → E1 0.423. The v1 Sentinel output scores E1 0.532 but **NAB −831.6 under NAB's own convention (every flagged row is a detection)**; the 40.7 reported before counted only alert onsets. It flags 8.27% of rows.
+- Decision: primary metric is now the **trigger-based event F1 (ET)**: an alert counts where it is triggered (its first row); true if the trigger is inside a window; recall = windows with ≥ 1 trigger; extra triggers in a detected window are ignored, like NAB. It follows the challenge text ("latency between true anomaly onset and model trigger timestamp", precision = true flags / total flags). Under ET, flag-everything scores 0.0 and random 1% of rows 0.057. E1 is kept and reported as a secondary, project-defined metric with its loophole documented; NAB (onsets and official convention), composite F1 (event recall × point precision) and point-wise F1 are reported too. v1 under ET: F1 0.444 (P 0.412, R 0.483, 80 false alerts).
+
+**L-0043** · ~2026-10-27T11:45+05:30 · Claude Opus 5.5 · CODE / DECISION · T4.5
+- Files: `pipeline.py`, `configs/default.yaml`, `detectors/residual.py`, `runner.py`, `search.py`, `scripts/search.py`, `configs/search_space.yaml`, `baselines/__init__.py`, scripts.
+- `events.label_len` (default 1): only the first `label_len` rows of an event are labelled ANOMALOUS; the open incident is reported as state `EVENT` (was `ANOMALOUS`) with its event id on every row, and the full span stays in `events.jsonl`. Detection, pausing, re-baselining and cooldown are unchanged (a test checks the surprise trace is identical). Why: truncating v1's alerts to their first K rows gave, for K = 1 / 10 / 100 / all: ET 0.444 (unchanged by construction), NAB-official 40.7 / 12.6 / −113.4 / −831.6, E1 0.471 / 0.471 / 0.505 / 0.532. The extra E1 from long labels comes from long alerts "overlapping" windows, the same mechanism as the flag-everything loophole, so we do not take it. Baselines get the same convention in their event/calibrated variants.
+- D1 evidence: level and seasonal offsets are only identified as a sum, and a constant drifted between them (evidence showed `level` −247 for values ≈ 45). Evidence now reports the centred split (`level`, `seasonal_offset`); predictions and scores unchanged.
+- `run_sentinel(det_probation=...)` to measure how much the NAB-given probation length (it needs the file length) matters.
+- Search: objective = micro ET F1 (was E1); cache key = `v2_<data fingerprint>_<hash of the source files that can change a row>_<config hash>` (old key was a manual `v1` + config hash only); nested LOCO (`--nested`, `--fold`, `--aggregate-nested`) re-runs the whole staged search per held-out category; stage 2b adds max_len 50 and cooldown 800 (short alerts + rest period, IDEAS #4). Old `experiments/runs.csv` kept as `experiments/runs_v1_historical.csv`.
+
+**L-0044** · ~2026-10-27T11:47+05:30 · Claude Opus 5.5 · TEST · T3.5, T4.x
+- Files: `tests/test_leakage.py` (new), `tests/test_metrics_trigger.py` (new), `tests/test_events.py`, `tests/test_pipeline.py`.
+- New: future-perturbation tests (giant spikes / shuffled / flat / NaN future must not change any output ≤ t; synthetic + 4 NAB files; Sentinel and all sklearn/rolling baselines), label/window independence, prediction-time convention (x_t is visible at row t), calibration frozen during an event, ET edge cases (trigger before window = FP + miss, redundant triggers, empty files, probation), NAB official vs onsets, adversarial flag-everything / alternating corpora. Result: 57 passed, 0 skipped.

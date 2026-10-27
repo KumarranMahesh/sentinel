@@ -1,4 +1,7 @@
-"""Score NAB's published detector outputs with our metrics (event F1 E1, NAB score).
+"""Score NAB's published detector outputs with our metrics (ET, E1, NAB score).
+
+Reading the published CSV score files executes no NAB code. Only --cad imports and runs
+NAB's CAD OSE implementation (MIT licence, nab/detectors/context_ose/) from the archive.
 
   python scripts/download_nab.py --results ARTime numenta contextOSE knncad earthgeckoSkyline \
       relativeEntropy randomCutForest twitterADVec windowedGaussian
@@ -35,7 +38,8 @@ MAX_FRAC = 0.10
 
 
 def score_all(corpus, scores, th_nab):
-    """Event-F1 summary of one detector's raw scores {file: array}."""
+    """Summary of one detector's raw scores {file: array}: every row with score >= threshold
+    is ANOMALOUS (NAB's convention). ET = trigger-based event F1 (primary), E1 = overlap F1."""
     names = list(corpus)
     npost = sum(len(s) - s.probation for s in corpus.values())
     allv = np.concatenate([scores[n] for n in names])
@@ -51,13 +55,17 @@ def score_all(corpus, scores, th_nab):
     best_th = max(ok, key=lambda t: config_scores(ok[t])["f1"])
     best = config_scores(ok[best_th])
     cv = loco(ok, categories(corpus))
-    return {"nab_score_ours": round(at["nab_standard"], 1),
-            "f1_at_nab_threshold": round(at["f1"], 3), "p_at_nab_threshold": round(at["precision"], 3),
-            "r_at_nab_threshold": round(at["recall"], 3),
+    t = at["trigger"]
+    return {"nab_onsets_ours": round(at["nab_standard"], 1),
+            "nab_official_ours": round(at["nab_standard_official"], 1),
+            "et_f1_at_nab_threshold": round(t["f1"], 3), "et_p_at_nab_threshold": round(t["precision"], 3),
+            "et_r_at_nab_threshold": round(t["recall"], 3),
+            "e1_f1_at_nab_threshold": round(at["f1"], 3),
             "flagged_at_nab_threshold": round(frac[float(th_nab)], 4),
-            "f1_best": round(best["f1"], 3), "p_best": round(best["precision"], 3),
-            "r_best": round(best["recall"], 3), "fp_best": best["fp"], "found_best": best["tp_gt"],
-            "flagged_best": round(frac[best_th], 4), "f1_loco": round(cv["f1"], 3)}
+            "et_f1_best": round(best["f1"], 3), "et_p_best": round(best["precision"], 3),
+            "et_r_best": round(best["recall"], 3), "false_alerts_best": best["fp"],
+            "detected_best": best["tp"], "flagged_best": round(frac[best_th], 4),
+            "et_f1_loco_threshold": round(cv["f1"], 3)}
 
 
 def _cad(values, probation, mode):

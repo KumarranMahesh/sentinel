@@ -1,6 +1,10 @@
-"""Sentinel live demo: stream a series point by point and watch alerts + evidence.
+"""Sentinel demo: replay a series point by point and watch alerts + evidence.
 
   streamlit run app/streamlit_app.py
+
+This is a local replay of stored CSV files through the streaming detector (one update()
+call per row), not a connection to a live data source. Ground-truth windows are drawn and
+used for the running scores only ("benchmark view"); they are never passed to the detector.
 """
 import sys
 import time
@@ -18,7 +22,7 @@ from plotly.subplots import make_subplots  # noqa: E402
 from sentinel import StreamingSentinel  # noqa: E402
 from sentinel.config import load_config  # noqa: E402
 from sentinel.io import NAB_ROOT, Series, load_corpus, probation_length  # noqa: E402
-from sentinel.metrics import file_counts, prf  # noqa: E402
+from sentinel.metrics.trigger import trigger_counts, trigger_prf  # noqa: E402
 from sentinel.metrics.windows import events_from_labels  # noqa: E402
 
 GREY, RED, ORANGE, BLUE = "#6b7280", "#dc2626", "#f59e0b", "#2563eb"
@@ -39,15 +43,28 @@ def get_config():
 
 
 def uploaded_series(f):
-    df = pd.read_csv(f)
+    """Parse an uploaded CSV; returns (Series, None) or (None, error message)."""
+    try:
+        df = pd.read_csv(f)
+    except Exception as e:  # noqa: BLE001
+        return None, f"Could not read the file as CSV ({e})."
+    if df.shape[1] < 2:
+        return None, "Need two columns: a timestamp and a numeric value."
     ts_col = "timestamp" if "timestamp" in df.columns else df.columns[0]
     val_col = "value" if "value" in df.columns else df.columns[1]
-    ts = pd.to_datetime(df[ts_col]).to_numpy(dtype="datetime64[ns]")
+    try:
+        ts = pd.to_datetime(df[ts_col]).to_numpy(dtype="datetime64[ns]")
+    except Exception:  # noqa: BLE001
+        return None, f"Column '{ts_col}' does not contain parseable timestamps."
     vals = pd.to_numeric(df[val_col], errors="coerce").to_numpy(dtype=float)
-    return Series(f.name, ts, vals, [], [], probation_length(len(vals)))
+    if len(vals) < 20:
+        return None, f"Only {len(vals)} rows; need at least 20."
+    if np.isnan(vals).all():
+        return None, f"Column '{val_col}' has no numeric values."
+    return Series(f.name, ts, vals, [], [], probation_length(len(vals))), None
 
 
-def make_figure(s, upto, surprise, labels, th_enter, th_exit):
+def make_figure(s, upto, surprise, labels, th_enter, th_exit, state=None):
     ts = pd.to_datetime(s.timestamps[:upto])          # Timestamps: plotly shapes need them
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.65, 0.35],
                         vertical_spacing=0.06, subplot_titles=("value", "surprise (−log10 p)"))
@@ -64,9 +81,16 @@ def make_figure(s, upto, surprise, labels, th_enter, th_exit):
         if a < upto:
             fig.add_vrect(x0=ts[a], x1=ts[min(b, upto - 1)], fillcolor=ORANGE, opacity=0.25,
                           line_width=0, layer="below", row=1, col=1)
-    for a, b in events_from_labels(labels[:upto], s.probation):
-        fig.add_vrect(x0=ts[a], x1=ts[b], fillcolor=RED, opacity=0.45, line_width=0, layer="below",
-                      row=1, col=1)
+    if state is not None:
+        for a, b in events_from_labels(np.asarray(state[:upto]) == "EVENT", s.probation):
+            fig.add_vrect(x0=ts[a], x1=ts[b], fillcolor=RED, opacity=0.15, line_width=0,
+                          layer="below", row=1, col=1)
+    trig = [a for a, _ in events_from_labels(labels[:upto], s.probation)]
+    if trig:
+        fig.add_trace(go.Scatter(x=ts[trig], y=s.values[trig], mode="markers", name="alert",
+                                 marker=dict(color=RED, size=9, symbol="triangle-down")), row=1, col=1)
+        for a in trig:
+            fig.add_vline(x=ts[a], line=dict(color=RED, width=1), row=1, col=1)
     for y, dash, name in ((th_enter, "solid", "θ enter"), (th_exit, "dot", "θ exit")):
         fig.add_hline(y=y, line=dict(color=RED, dash=dash, width=1), row=2, col=1,
                       annotation_text=name, annotation_position="right")
@@ -75,11 +99,12 @@ def make_figure(s, upto, surprise, labels, th_enter, th_exit):
 
 
 def running_metrics(s, labels, upto):
+    """Benchmark view only: trigger-based event P/R against the windows seen so far."""
     if not s.windows:
         return None
     wins = [(a, min(b, upto - 1)) for a, b in s.windows if a < upto]
-    c = file_counts(labels[:upto], wins, s.probation)
-    return c, prf(c)
+    c = trigger_counts(labels[:upto], wins, s.probation)
+    return c, trigger_prf(c)
 
 
 # ---------------------------------------------------------------- sidebar
@@ -102,7 +127,9 @@ if source == "NAB file":
 else:
     up = st.sidebar.file_uploader("CSV with timestamp,value", type="csv")
     if up is not None:
-        series = uploaded_series(up)
+        series, err = uploaded_series(up)
+        if err:
+            st.sidebar.error(err)
 step = st.sidebar.slider("Points per frame", 25, 2000, 250, step=25)
 pause = st.sidebar.slider("Pause per frame (s)", 0.0, 0.5, 0.05, step=0.05)
 go_stream = st.sidebar.button("▶ Stream", type="primary", width="stretch")
@@ -112,6 +139,7 @@ if qp.get("run") == "1" and "auto_ran" not in st.session_state:
     go_all = True
 
 st.title("Sentinel — calibrated, explainable streaming anomaly detection")
+st.caption("Local replay of a stored series through the streaming detector, one row at a time.")
 if series is None:
     st.info("Pick a NAB file or upload a CSV in the sidebar.")
     st.stop()
@@ -120,7 +148,8 @@ th_enter = cfg["events"]["theta_enter"]
 th_exit = th_enter - cfg["events"]["exit_offset"]
 n = len(series)
 st.caption(f"`{series.name}` · {n:,} points · probation {series.probation} · "
-           f"orange = labelled anomaly window, red = Sentinel alert, grey = probation")
+           f"orange = labelled window (benchmark view, never shown to the detector) · "
+           f"red marker = alert trigger · light red = open event · grey = probation")
 
 chart = st.empty()
 cols = st.columns(4)
@@ -131,6 +160,8 @@ if go_stream or go_all:
     det = StreamingSentinel(cfg, probation_len=series.probation)
     surprise = np.zeros(n)
     labels = np.zeros(n, dtype=np.int8)
+    states = np.empty(n, dtype=object)
+    states[:] = "PROBATION"
     t_ns = np.zeros(n, dtype=np.int64)
     secs, vals = series.seconds, series.values
     frame = n if go_all else step
@@ -142,7 +173,8 @@ if go_stream or go_all:
             t_ns[j] = time.perf_counter_ns() - t0
             surprise[j] = r.surprise
             labels[j] = r.label == "ANOMALOUS"
-        chart.plotly_chart(make_figure(series, end, surprise, labels, th_enter, th_exit),
+            states[j] = r.state
+        chart.plotly_chart(make_figure(series, end, surprise, labels, th_enter, th_exit, states),
                            width="stretch", key=f"chart_{start}")
         live = t_ns[series.probation:end]
         n_events = len(det.events) + (det.current is not None)
@@ -150,24 +182,25 @@ if go_stream or go_all:
         stat_boxes[1].metric("Alerts (events)", n_events)
         stat_boxes[2].metric("µs / point (mean)", f"{live.mean() / 1000:.0f}" if len(live) else "–")
         m = running_metrics(series, labels, end)
-        stat_boxes[3].metric("Event P / R so far", f"{m[1]['precision']:.2f} / {m[1]['recall']:.2f}"
-                             if m and (m[0]['n_events'] or m[0]['n_windows']) else "–")
+        stat_boxes[3].metric("Benchmark P / R so far", f"{m[1]['precision']:.2f} / {m[1]['recall']:.2f}"
+                             if m and (m[0]['n_alerts'] or m[0]['n_windows']) else "–")
         if not go_all and pause:
             time.sleep(pause)
     st.session_state["result"] = {"key": key, "surprise": surprise, "labels": labels,
-                                  "events": det.finish(), "t_ns": t_ns, "season": det.season}
+                                  "states": states, "events": det.finish(), "t_ns": t_ns,
+                                  "season": det.season}
 
 res = st.session_state.get("result")
 if res and res["key"] == key:
     if not (go_stream or go_all):
-        chart.plotly_chart(make_figure(series, n, res["surprise"], res["labels"], th_enter, th_exit),
-                           width="stretch")
+        chart.plotly_chart(make_figure(series, n, res["surprise"], res["labels"], th_enter, th_exit,
+                                       res.get("states")), width="stretch")
         live = res["t_ns"][series.probation:]
         stat_boxes[0].metric("Points streamed", f"{n:,}")
         stat_boxes[1].metric("Alerts (events)", len(res["events"]))
         stat_boxes[2].metric("µs / point (mean)", f"{live.mean() / 1000:.0f}")
         m = running_metrics(series, res["labels"], n)
-        stat_boxes[3].metric("Event P / R", f"{m[1]['precision']:.2f} / {m[1]['recall']:.2f}" if m else "–")
+        stat_boxes[3].metric("Benchmark P / R", f"{m[1]['precision']:.2f} / {m[1]['recall']:.2f}" if m else "–")
     st.subheader("Evidence for each alert")
     st.caption(f"Season mode detected after probation: **{res['season']['mode']}**")
     if not res["events"]:
@@ -183,7 +216,8 @@ if res and res["key"] == key:
         with c1:
             st.markdown("**Detector surprise at onset**")
             st.bar_chart(pd.Series(e["detector_surprise"]))
-            st.markdown(f"Length **{e['length_points']}** points · re-baselined: **{e['rebaselined']}**")
+            st.markdown(f"Event length **{e['length_points']}** points (alert label on the first "
+                        f"{cfg['events'].get('label_len') or 'all'} row(s)) · re-baselined: **{e['rebaselined']}**")
         with c2:
             st.markdown("**Evidence JSON**")
             st.json({k: v for k, v in e.items() if k != "trace"}, expanded=False)

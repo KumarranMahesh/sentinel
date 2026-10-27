@@ -127,6 +127,26 @@ def baseline_point_cost(corpus, n_calls=300):
     return out
 
 
+def peak_memory(corpus, cfg):
+    """Peak Python heap while streaming the longest file (tracemalloc), plus process max RSS."""
+    import tracemalloc
+    s = max(corpus.values(), key=len)
+    tracemalloc.start()
+    det = StreamingSentinel(cfg, probation_len=s.probation)
+    for t, v in zip(s.seconds, s.values):
+        det.update(t, v)
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    out = {"file": s.name, "points": len(s), "stream_peak_heap_mb": round(peak / 2 ** 20, 2)}
+    try:
+        import resource
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        out["process_max_rss_mb"] = round(rss / (2 ** 20 if sys.platform == "darwin" else 2 ** 10), 1)
+    except ImportError:
+        pass
+    return out
+
+
 def stats(us):
     return {"mean": float(us.mean()), "p50": float(np.percentile(us, 50)),
             "p95": float(np.percentile(us, 95)), "p99": float(np.percentile(us, 99)),
@@ -169,6 +189,7 @@ def main():
         "component_us_per_point": comp,
         "component_note": "time inside each component per scored point (1 extra run with timers)",
         "baseline_single_point_us": baseline_point_cost(corpus),
+        "memory": peak_memory(corpus, cfg),
     }
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(out, indent=2))
