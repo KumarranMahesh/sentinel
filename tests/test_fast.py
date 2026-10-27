@@ -16,14 +16,16 @@ KEYS = ("anomaly_score", "surprise", "label", "event_id", "state", "top_detector
         "detector_surprise")
 
 
-def _same(a, b, exact=True):
+def _same(a, b, exact=True, atol=1e-12):
     """Exact for the D1+D2 core; with D7 the BLAS dot products in the reference sum in a
-    different order, so floats may differ by ~1e-15 (labels, states and events still equal)."""
+    different order, so floats may differ by ~1e-15 (labels, states and events still equal).
+    With D4 (LOF) many raw scores are exact ties, so a 1e-16 difference can move a score's rank
+    in the calibration buffer by one: surprise may differ by ~1e-3; labels/events must not."""
     for k in KEYS:
         if exact or a[k].dtype == object or k in ("label", "event_id"):
             assert np.array_equal(a[k], b[k]), k
         else:
-            assert np.allclose(a[k], b[k], rtol=0, atol=1e-12), k
+            assert np.allclose(a[k], b[k], rtol=0, atol=atol), k
     assert json.dumps(a["events"]) == json.dumps(b["events"])
 
 
@@ -32,6 +34,7 @@ CONFIGS = [
     {"subspace": {"enabled": True}},
     {"events": {"reenter_offset": 2.0, "label_len": None}, "output": {"score": "surprise"}},
     {"change": {"deseasonalize": False}, "events": {"cooldown": 0}},
+    {"lof": {"enabled": True}, "subspace": {"enabled": True}},
 ]
 
 
@@ -48,7 +51,8 @@ def test_fast_equals_reference_synthetic(over, rng):
     from sentinel.config import ROOT
     cfg = load_config(ROOT / "configs" / "final.yaml", over)
     assert fast.supports(cfg)
-    _same(run_sentinel(s, cfg), fast.run_fast(s, cfg), exact="subspace" not in over)
+    _same(run_sentinel(s, cfg), fast.run_fast(s, cfg), exact=not ({"subspace", "lof"} & set(over)),
+          atol=1e-2 if "lof" in over else 1e-12)
 
 
 @pytest.mark.skipif(not HAVE_NAB, reason="NAB not installed")

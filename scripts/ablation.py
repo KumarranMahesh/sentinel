@@ -31,19 +31,27 @@ def variants(final):
     no_logic = {"events": {"enabled": False}}
     hyst = {"events": {"enabled": True, "cooldown": 0, "max_len": BIG, "pause": False, "rebaseline": False}}
     cool = {"events": {"enabled": True, "pause": False, "rebaseline": False}}
-    return [
-        ("1a D1 residual only", {"change": {"enabled": False}, "shape": {"enabled": False}}, off),
-        ("1b D2 change only", {"residual": {"enabled": False}, "shape": {"enabled": False}}, off),
-        ("1c D3 shape only", {"residual": {"enabled": False}, "change": {"enabled": False},
-                              "shape": {"enabled": True}}, off),
-        ("1d D1 + D2 + D3 (shape on)", {"shape": {"enabled": True}}, off),
-        ("2 D1 + D2, no calibration (raw / probation p99)",
-         {"calibration": {"mode": "p99"}}, "p99"),
+    sub = bool(final.get("subspace", {}).get("enabled"))
+    only = lambda keep: {n: {"enabled": n == keep} for n in ("residual", "change", "shape", "subspace")}
+    rows = [
+        ("1a D1 residual only", only("residual"), off),
+        ("1b D2 change only", only("change"), off),
+    ]
+    if sub:
+        rows += [("1c D7 subspace only", only("subspace"), off),
+                 ("1d D1 + D2 (v2 detectors)", {"subspace": {"enabled": False}}, off)]
+    else:
+        rows += [("1c D3 shape only", only("shape"), off),
+                 ("1d D1 + D2 + D3 (shape on)", {"shape": {"enabled": True}}, off)]
+    name = "D1 + D2 + D7" if sub else "D1 + D2"
+    rows += [
+        (f"2 {name}, no calibration (raw / probation p99)", {"calibration": {"mode": "p99"}}, "p99"),
         ("3 + calibration, plain threshold", {**tail, **no_logic}, off),
         ("4 + hysteresis", hyst, off),
         ("5 + cooldown and max length", cool, off),
-        ("6 + pause and re-baseline (full Sentinel, D1 + D2)", {}, off),
-    ], th
+        (f"6 + pause and re-baseline (full Sentinel, {name})", {}, off),
+    ]
+    return rows, th
 
 
 def main():

@@ -34,7 +34,7 @@ STATE_NAMES = np.array(["PROBATION", "NORMAL", "EVENT", "COOLDOWN"], dtype=objec
 def supports(cfg):
     names = [n for n in ORDER if cfg.get(n, {}).get("enabled")]
     tr = cfg.get("transform", {})
-    return (names[:2] == ["residual", "change"] and set(names[2:]) <= {"subspace"}
+    return (names[:2] == ["residual", "change"] and set(names[2:]) <= {"lof", "subspace"}
             and not tr.get("log1p") and not tr.get("counts")
             and cfg["fusion"]["method"] == "max_bonferroni"
             and cfg["fusion"].get("smooth_mode", "mean") == "mean"
@@ -278,9 +278,58 @@ def _bucket(sec, mode):
     return -1
 
 
+@njit(cache=True)
+def _lof_score(lw, lw_head, kwin, paa, R, R2, kdist, lrd, nn, excl, wbuf, fbuf, nbd, nbi):
+    """D4 LOF score of the current window (lw ring, oldest at lw_head) vs the fixed reference."""
+    for t in range(kwin):
+        wbuf[t] = lw[(lw_head + t) % kwin]
+    m = kwin
+    if paa > 0:
+        seg = kwin // paa
+        for q in range(paa):
+            fbuf[q] = _pw_leaf(wbuf, q * seg, seg) / seg
+        m = paa
+    else:
+        for t in range(kwin):
+            fbuf[t] = wbuf[t]
+    for t in range(m - 1):
+        fbuf[m + t] = fbuf[t + 1] - fbuf[t]
+    dim = 2 * m - 1
+    ff = 0.0
+    for t in range(dim):
+        ff += fbuf[t] * fbuf[t]
+    cnt = 0
+    for r in range(R.shape[0]):
+        acc = 0.0
+        for t in range(dim):
+            acc += R[r, t] * fbuf[t]
+        dd = R2[r] - 2.0 * acc + ff
+        dd = math.sqrt(dd) if dd > 0.0 else 0.0
+        if r == excl:
+            dd = np.inf
+        if cnt < nn or dd < nbd[cnt - 1]:
+            j = cnt if cnt < nn else nn - 1
+            while j > 0 and nbd[j - 1] > dd:
+                nbd[j] = nbd[j - 1]
+                nbi[j] = nbi[j - 1]
+                j -= 1
+            nbd[j] = dd
+            nbi[j] = r
+            if cnt < nn:
+                cnt += 1
+    sl = 0.0
+    sr = 0.0
+    for q in range(nn):
+        sl += lrd[nbi[q]]
+        rr = kdist[nbi[q]]
+        sr += rr if rr > nbd[q] else nbd[q]
+    return (sl / nn) * (sr / nn + 1e-10), nbd[0]
+
+
 # ----------------------------------------------------------------------------- kernel
 @njit(cache=True)
-def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev_cnt, ev_rec):
+def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev_cnt, ev_rec,
+            lof_R, lof_R2, lof_kd, lof_lrd, lof_rows):
     """fl/it: float/int parameters (see run_fast). Returns the number of events opened."""
     W, min_count, mode, recent_r = it[0], it[1], it[2], it[3]
     deseason, C, min_exceed, min_tail_n, recalc_every = it[4], it[5], it[6], it[7], it[8]
@@ -291,6 +340,19 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
         fl[0], fl[1], fl[2], fl[3], fl[4], fl[5], fl[6], fl[7], fl[8], fl[9])
     tail_q, th_enter, th_exit, rb_sigma, reenter, ss_s = (
         fl[10], fl[11], fl[12], fl[13], fl[14], fl[15])
+    k_lof, k_ss, lof_k, lof_paa, lof_nn, lof_ok, lof_np = (
+        it[21], it[22], it[23], it[24], it[25], it[26] == 1, it[27])
+    lof_lo, lof_span = fl[17], fl[18]
+    use_lof = k_lof >= 0
+    lw = np.zeros(max(lof_k, 1))
+    lw_head = 0
+    lw_n = 0
+    lof_wbuf = np.zeros(max(lof_k, 1))
+    lof_fbuf = np.zeros(max(2 * lof_k, 2))
+    lof_nbd = np.zeros(max(lof_nn, 1))
+    lof_nbi = np.zeros(max(lof_nn, 1), np.int64)
+    lof_val = 0.0
+    lof_near = np.nan
     n_all = len(xs)
     nb = 168 if mode == 2 else 24
     log10K = math.log10(K)
@@ -328,7 +390,7 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
     ss_v = np.zeros(max(L, 1))
     ss_spe = 0.0
     ss_frac = 0.0
-    use_ss = L > 0
+    use_ss = k_ss >= 0
     # calibrators
     cb = np.zeros((K, C))
     cs = np.zeros((K, C + 1))
@@ -452,6 +514,29 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
                     a = max(slow_rate, 1.0 / s2_n)
                     s2_v += a * (abs(x2 - mu) - s2_v)
                     mu += slow_rate * (x2 - mu)
+                    # D4 (window appended in score; reference fixed; no self-match in replay)
+                    if use_lof:
+                        v4 = (xq - lof_lo) / lof_span
+                        if lw_n < lof_k:
+                            lw[(lw_head + lw_n) % lof_k] = v4
+                            lw_n += 1
+                        else:
+                            lw[lw_head] = v4
+                            lw_head = (lw_head + 1) % lof_k
+                        if lof_ok:
+                            raw4 = 0.0
+                            if lw_n == lof_k:
+                                excl = -1
+                                row = j - (lof_k - 1)
+                                if j < lof_np and row >= 0:
+                                    pos = _bisect_left(lof_rows.astype(np.float64), len(lof_rows), row)
+                                    if pos < len(lof_rows) and lof_rows[pos] == row:
+                                        excl = pos
+                                raw4, lof_near = _lof_score(lw, lw_head, lof_k, lof_paa, lof_R, lof_R2,
+                                                            lof_kd, lof_lrd, lof_nn, excl, lof_wbuf,
+                                                            lof_fbuf, lof_nbd, lof_nbi)
+                                lof_val = raw4
+                            _cal_add(k_lof, raw4, cb, cs, cnk, cpos, csince, C)
                     # D7
                     if use_ss:
                         if ss_n >= L - 1:
@@ -471,7 +556,7 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
                                     acc += U[t, c] * ss_v[t]
                                 pr += acc * acc
                             raw7 = max(tot - pr, 0.0) / L
-                            _cal_add(2, raw7, cb, cs, cnk, cpos, csince, C)
+                            _cal_add(k_ss, raw7, cb, cs, cnk, cpos, csince, C)
                         if ss_n < L - 1:
                             ss_win[(ss_head + ss_n) % (L - 1)] = xq
                             ss_n += 1
@@ -558,9 +643,24 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
             r20_head = (r20_head + 1) % 20
         d2_i = i
         raws[1] = max(cp, max(cn_, vp)) / h
+        if use_lof:
+            v4 = (x - lof_lo) / lof_span
+            if lw_n < lof_k:
+                lw[(lw_head + lw_n) % lof_k] = v4
+                lw_n += 1
+            else:
+                lw[lw_head] = v4
+                lw_head = (lw_head + 1) % lof_k
+            ready[k_lof] = lof_ok
+            raws[k_lof] = 0.0
+            if lof_ok and lw_n == lof_k:
+                lof_val, lof_near = _lof_score(lw, lw_head, lof_k, lof_paa, lof_R, lof_R2, lof_kd,
+                                               lof_lrd, lof_nn, -1, lof_wbuf, lof_fbuf, lof_nbd,
+                                               lof_nbi)
+                raws[k_lof] = lof_val
         if use_ss:
-            ready[2] = ss_n >= L - 1
-            if ready[2]:
+            ready[k_ss] = ss_n >= L - 1
+            if ready[k_ss]:
                 for t in range(L - 1):
                     ss_v[t] = ss_win[(ss_head + t) % (L - 1)]
                 ss_v[L - 1] = x
@@ -578,9 +678,9 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
                     pr += acc * acc
                 ss_spe = max(tot - pr, 0.0) / L
                 ss_frac = 1.0 - ss_spe * L / tot if tot > 0 else 1.0
-                raws[2] = ss_spe
+                raws[k_ss] = ss_spe
             else:
-                raws[2] = 0.0
+                raws[k_ss] = 0.0
         for k in range(K):
             us[k] = _cal_surprise(k, raws[k], cb, cs, cnk, cq, cme, csince, cqok, tail_q,
                                   min_exceed, min_tail_n, recalc_every, tmp) if ready[k] else 0.0
@@ -700,8 +800,10 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
             ev_f[e, 9] = mu
             ev_f[e, 10] = ss_spe
             ev_f[e, 11] = ss_frac
+            ev_f[e, 12] = lof_val
+            ev_f[e, 13] = lof_near
             for k in range(K):
-                ev_f[e, 12 + k] = us[k]
+                ev_f[e, 14 + k] = us[k]
             for t in range(nb):
                 ev_prof[e, t] = prof[t]
                 ev_cnt[e, t] = cnt[t]
@@ -788,6 +890,21 @@ def run_fast(series, cfg, det_probation=None):
     K = len(names)
     U = np.zeros((1, 1))
     L = 0
+    k_lof = names.index("lof") if "lof" in names else -1
+    k_ss = names.index("subspace") if "subspace" in names else -1
+    lofd = None
+    lof_arrays = (np.zeros((1, 1)), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1, np.int64))
+    lof_it = [0, 0, 0, 0, 0]
+    lof_fl = [0.0, 1.0]
+    if k_lof >= 0:
+        from .detectors.lof import LofDetector
+        lofd = LofDetector(c["lof"], px)
+        lof_fl = [lofd.lo, lofd.span]
+        lof_it = [lofd.k, int(lofd.paa or 0), getattr(lofd, "nn", 0), int(lofd.ok), lofd.n_prob]
+        if lofd.ok:
+            lof_arrays = (np.ascontiguousarray(lofd.R, dtype=float), np.ascontiguousarray(lofd.R2, float),
+                          np.ascontiguousarray(lofd.kdist, float), np.ascontiguousarray(lofd.lrd, float),
+                          np.ascontiguousarray(lofd.ref_rows, np.int64))
     if "subspace" in names:
         from .detectors.subspace import SubspaceDetector
         sd = SubspaceDetector(c["subspace"], px, rs)
@@ -805,28 +922,30 @@ def run_fast(series, cfg, det_probation=None):
                    med, rs, vmean, cal["tail_q"], ev["theta_enter"],
                    ev["theta_enter"] - ev["exit_offset"], ev["rebaseline_sigma"],
                    ev["theta_enter"] + ro if ro is not None else 0.0, rs,
-                   season["dt_seconds"]], float)
+                   season["dt_seconds"], *lof_fl], float)
     it = np.array([c["residual"]["window"], c["residual"]["season_min_count"], mode,
                    max(ev["rebaseline_r"], 1), int(deseason), int(cal["buffer"]), cal["min_exceed"],
                    cal["min_tail_n"], cal["recalc_every"], int(bool(cal.get("learn_in_cooldown"))),
                    c["fusion"]["smooth"], ev["cooldown"], ev["max_len"],
                    -1 if ll is None else max(int(ll), 1), int(ev["pause"]), int(ev["rebaseline"]),
                    K, L, int(c.get("output", {}).get("score", "surprise") == "alert"),
-                   int(ro is not None), int(sys.version_info >= (3, 12))], np.int64)
+                   int(ro is not None), int(sys.version_info >= (3, 12)), k_lof, k_ss, *lof_it],
+                  np.int64)
     nb = 168 if mode == 2 else 24
     max_ev = n // 2 + 2
     out_f = np.zeros((n, 2))
     out_i = np.zeros((n, 4), np.int64)
     det_u = np.zeros((n, K))
     ev_i = np.zeros((max_ev, 12), np.int64)
-    ev_f = np.zeros((max_ev, 12 + K))
+    ev_f = np.zeros((max_ev, 14 + K))
     ev_prof = np.zeros((max_ev, nb))
     ev_cnt = np.zeros((max_ev, nb), np.int64)
     ev_rec = np.zeros((max_ev, 20))
-    n_ev = _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev_cnt, ev_rec)
+    n_ev = _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev_cnt, ev_rec,
+                   *lof_arrays)
     surprise = out_f[:, 1]
     events = [_event_record(e, ev_i, ev_f, ev_prof, ev_cnt, ev_rec, names, season, secs, xs,
-                            surprise, deseason, L, U, c["residual"]["season_min_count"])
+                            surprise, deseason, L, U, c["residual"]["season_min_count"], lof_it[0])
               for e in range(n_ev)]
     top = np.where(out_i[:, 1] >= 0, np.array(names + ["none"], dtype=object)[out_i[:, 1]], "none")
     return {"anomaly_score": out_f[:, 0], "surprise": surprise,
@@ -837,7 +956,7 @@ def run_fast(series, cfg, det_probation=None):
 
 
 def _event_record(e, ev_i, ev_f, ev_prof, ev_cnt, ev_rec, names, season, secs, xs, surprise,
-                  deseason, L, U, min_count):
+                  deseason, L, U, min_count, lof_k=0):
     start, close_i, top = int(ev_i[e, 0]), int(ev_i[e, 1]), int(ev_i[e, 2])
     b, scored = int(ev_i[e, 5]), bool(ev_i[e, 6])
     x, lvl, pred, r, sig, s = (float(v) for v in ev_f[e, :6])
@@ -867,10 +986,14 @@ def _event_record(e, ev_i, ev_f, ev_prof, ev_cnt, ev_rec, names, season, secs, x
                               "recent_mean": float(sum(rec) / len(rec)) if rec else None,
                               "points_since_drift_start": int(ev_i[e, 10] - st + 1) if st >= 0 else 0,
                               "deseasonalized": deseason}
+        elif name == "lof":
+            near = float(ev_f[e, 13])
+            evid["lof"] = {"lof": float(ev_f[e, 12]), "nearest_distance": None if near != near else near,
+                           "window": int(lof_k)}
         elif name == "subspace":
             evid["subspace"] = {"spe": float(ev_f[e, 10]), "explained_fraction": float(ev_f[e, 11]),
                                 "lag": int(L), "components": int(U.shape[1])}
-    dsur = {n: float(ev_f[e, 12 + k]) for k, n in enumerate(names)}
+    dsur = {n: float(ev_f[e, 14 + k]) for k, n in enumerate(names)}
     end_i = close_i - 1
     rows = np.arange(start, close_i)
     rows = rows[~np.isnan(xs[rows])]

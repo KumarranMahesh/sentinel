@@ -75,6 +75,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sentinel-config", default="configs/final.yaml")
     ap.add_argument("--out", default="results/baselines_comparison.csv")
+    ap.add_argument("--previous-config", default="configs/v2_final.yaml",
+                    help="also score this config as a 'sentinel_v2' row (skipped if missing)")
+    ap.add_argument("--validation", default="results/validation/final.json",
+                    help="v3 held-out numbers (scripts/validate.py --name final ...)")
     args = ap.parse_args()
     corpus = load_corpus()
     series = list(corpus.values())
@@ -102,7 +106,14 @@ def main():
     rows = evaluate_config(corpus, scfg)
     summ = Path("results/search_summary.json")
     cv, how = None, ""
-    if summ.exists() and cfg_path:
+    val = Path(args.validation)
+    vj = json.loads(val.read_text()) if val.exists() else None
+    if vj is not None:
+        # v3: theta-LOCO of the final family, same protocol as the calibrated baselines
+        cv = vj["candidate"]["theta_loco"]
+        how = (f"CV = theta-LOCO (scripts/validate.py); time-split late ET "
+               f"{vj['candidate']['time_split']['late']['f1']:.3f}")
+    elif summ.exists() and cfg_path:
         sj = json.loads(summ.read_text())
         cand = Path("results/candidates.json")
         if "nested_loco" in sj:
@@ -118,6 +129,12 @@ def main():
             cv, how = sj.get("pool_loco_cv_optimistic"), "CV = LOCO over the search pool (optimistic)"
     table.append(table_row("sentinel", "full", rows, cv,
                            note=f"config={cfg_path or 'default'}; {how}"))
+    prev = Path(args.previous_config)
+    if prev.exists():
+        pcfg = load_config(prev)
+        pcv = vj["base"]["theta_loco"] if vj is not None else None
+        table.append(table_row("sentinel_v2", "full", evaluate_config(corpus, pcfg), pcv,
+                               note=f"config={prev}; previous submission (D1 + D2)"))
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(table).to_csv(args.out, index=False)
     print(json.dumps({"written": args.out, "sentinel_config": cfg_path or "default"}))

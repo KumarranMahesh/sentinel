@@ -45,7 +45,14 @@ def load():
         "cats": pd.read_csv(RES / "dataset_stats_by_category.csv"),
         "audit": pd.read_csv(RES / "metric_audit.csv") if (RES / "metric_audit.csv").exists() else None,
     }
-    d["cfg"] = yaml.safe_load((ROOT / "configs" / "final.yaml").read_text())
+    import sys
+    sys.path.insert(0, str(ROOT / "src"))
+    from sentinel.config import load_config
+    d["cfg"] = load_config(ROOT / "configs" / "final.yaml")
+    vf = RES / "validation" / "final.json"
+    d["val"] = json.loads(vf.read_text()) if vf.exists() else None
+    vs = RES / "validation" / "summary.csv"
+    d["vsum"] = pd.read_csv(vs) if vs.exists() else None
     d["storm"] = storm_counts()
     d["evidence"] = pick_evidence()
     return d
@@ -377,6 +384,24 @@ def s3_data(prs, d):
              "detector is not enough and why the threshold must be calibrated per series, online.")
 
 
+DET_INFO = {
+    "residual": ("D1 Residual", "spikes · dips · seasonal breaks"),
+    "change": ("D2 Change", "level / variance shifts"),
+    "shape": ("D3 Shape", "odd patterns"),
+    "lof": ("D4 LOF", "unusual recent window"),
+    "shift": ("D5 Shift", "distribution change (KS)"),
+    "joint": ("D6 Joint", "several features off (T²)"),
+    "subspace": ("D7 Subspace", "pattern breaks (SSA)"),
+    "forecast": ("D8 Forecast", "unexpected move (AR)"),
+    "neural": ("D9 Neural", "learned forecaster"),
+}
+ORDER = list(DET_INFO)
+
+
+def enabled(cfg):
+    return [n for n in ORDER if cfg.get(n, {}).get("enabled")]
+
+
 def s4_design(prs, d):
     s = prs.slides.add_slide(prs.slide_layouts[6])
     title(s, "One pass per point: detect, calibrate, fuse, decide, explain",
@@ -391,8 +416,7 @@ def s4_design(prs, d):
     xs = [x0 + i * (wbox + gap) for i in range(len(cols))]
     for i, (head, body) in enumerate(cols):
         if head is None:
-            dets = [("D1 Residual", "spikes · dips · seasonal breaks"), ("D2 Change", "level / variance shifts"),
-                    ("D3 Shape", "odd patterns (off in final.yaml)")]
+            dets = [DET_INFO[n] for n in enabled(d["cfg"])][:3]
             for k, (hh, bb) in enumerate(dets):
                 box_text(s, xs[i], y + k * 0.8, wbox, 0.7, [[(hh, {"bold": True, "size": 13, "color": WHITE})],
                                                            [(bb, {"size": 10, "color": "DCE8F8"})]],
@@ -411,9 +435,12 @@ def s4_design(prs, d):
              fill=TINT2, margin=0.1)
     arrow(s, xs[-1] + wbox / 2, y + h + 0.03, xs[-1] + wbox / 2, y + h + 0.42)
     rt = d["rt"]["us_per_point"]
-    facts = [("O(1)", "D1 rolling median (sorted list) and D2 CUSUM per point"),
-             ("O(H·m)", "D3: one matrix-vector product over the last H windows"),
-             (f"{rt['mean']:.0f} µs", f"mean time per point, one CPU core (p99 {rt['p99']:.0f} µs)"),
+    fe = d["rt"].get("fast_engine", {})
+    facts = [("O(1)", "D1 rolling median and D2 CUSUM per point" +
+              ("; D7 one L×r projection" if "subspace" in enabled(d["cfg"]) else "")),
+             (f"{rt['mean']:.0f} µs", f"per point, streaming API (Python), p99 {rt['p99']:.0f} µs"),
+             (f"{fe['us_per_point_mean']:.1f} µs" if fe.get("available") else "–",
+              "per point, compiled engine (Numba), identical output"),
              ("0", "random numbers, labels or future points used at run time")]
     for i, (v, l) in enumerate(facts):
         x = 0.6 + i * 2.6
@@ -433,8 +460,12 @@ def s5_algorithm(prs, d):
               "r = x − (median of last W deseasonalized x + hour offset)\nS1 = |r| / σ_EW"),
              ("D2  Change", "Level shifts, slow drift, variance change",
               "z = (x − slow mean) / slow scale\nC± = max(0, C± ± z − k),  S2 = max(C+, C−, V+) / h"),
-             ("D3  Shape", "Unusual patterns (optional; off in final.yaml)",
-              f"distance of newest z-normalized {cfg['shape']['m']}-point window\nto its nearest of the last {cfg['shape']['history']} windows")]
+             (("D7  Subspace", "Pattern breaks the learning period never showed",
+               f"newest {cfg['subspace']['lag']}-point window, minus its mean, outside the\n"
+               f"principal subspace of probation windows ({int(cfg['subspace']['var'] * 100)}% variance): S7 = SPE / L")
+              if cfg["subspace"]["enabled"] else
+              ("D3  Shape", "Unusual patterns (optional; off in final.yaml)",
+               f"distance of newest z-normalized {cfg['shape']['m']}-point window\nto its nearest of the last {cfg['shape']['history']} windows"))]
     for i, (h, sub, f) in enumerate(cards):
         x = 0.6 + i * 4.1
         box(s, x, 1.3, 3.9, 1.95, fill=TINT)
@@ -476,13 +507,13 @@ def s5_algorithm(prs, d):
          align=PP_ALIGN.CENTER)
     fus = d["cfg"]["fusion"]
     text(s, sx, sy + 1.55, 6.5, 1.0, [
-        [("Fusion: ", {"bold": True}), (f"U = max_k U_k − log10 K (Bonferroni, K = {sum(d['cfg'][k]['enabled'] for k in ('residual', 'change', 'shape'))} detectors on); Ū = {fus.get('smooth_mode', 'mean').replace('_', ' ')} over {fus['smooth']} points", {})],
+        [("Fusion: ", {"bold": True}), (f"U = max_k U_k − log10 K (Bonferroni, K = {len(enabled(d['cfg']))} detectors on); Ū = {fus.get('smooth_mode', 'mean').replace('_', ' ')} over {fus['smooth']} points", {})],
         [("Label: ", {"bold": True}), (f"ANOMALOUS on the first {ev.get('label_len') or 'every'} row(s) of an event (the trigger); "
                                         "the span is in state/event_id and events.jsonl.", {})],
         [("While EVENT: ", {"bold": True}), ("learning paused. At the end: re-baseline if the level moved > 3σ or D2 fired.", {})],
     ], size=12, color=INK2, spacing=4)
     footer(s, 5)
-    notes(s, "All three raw scores live on different scales. Calibration turns each into a p-value against its "
+    notes(s, "The raw scores live on different scales. Calibration turns each into a p-value against its "
              "own recent normal history, so one threshold means the same on every file.")
 
 
@@ -501,42 +532,49 @@ def held_text(srch):
     return f"{lab}: {v:.3f}"
 
 
+V3_NAMES = {"w_subspace32": "D7 subspace (lag 32)", "w_subspace": "D7 subspace, lag tuned",
+            "w_lof_full": "D4 LOF", "w_joint": "D6 Hotelling T²", "w_subspace_lof": "D7 + D4 LOF",
+            "w_subspace_joint": "D7 + D6 T²", "w_forecast": "D8 AR forecast",
+            "w_counts": "count transform", "w_neural": "D9 neural", "w_subspace32_neural": "D7 + D9 neural",
+            "shift": "D5 KS shift", "lof_cheap": "D4 LOF, cheap"}
+
+
 def s6_experiments(prs, d):
     s = prs.slides.add_slide(prs.slide_layouts[6])
     srch = d["search"]
     n = srch.get("pool_size", 0)
-    title(s, "Staged search, logged run by run, judged on held-out categories",
-          f"objective: trigger-based event F1; {n} configs in the final search, each run on all 58 files; "
-          "every run in experiments/runs.csv")
-    picture(s, FIG / "tuning.png", 0.6, 1.65, w=6.3)
+    title(s, "Experiment log: staged search (v2), then candidate detectors under a fixed rule (v3)",
+          f"v2: {n} configs, staged grid, every run in experiments/runs.csv  ·  v3: each candidate family vs the "
+          "current one on held-out categories AND on the late half of every file")
+    picture(s, FIG / "tuning.png", 0.6, 1.65, w=5.4)
+    vsum = d.get("vsum")
+    if vsum is not None:
+        keep = vsum[vsum.experiment.isin(V3_NAMES) & vsum.thetas.astype(str).str.startswith("3.5")]
+        rows = [["v3 candidate (θ 3.5–5.5)", "In-sample", "θ-LOCO", "Late half", ""]]
+        b = keep.iloc[0] if len(keep) else None
+        if b is not None:
+            rows.append(["current (D1 + D2)", f"{b.base_insample_f1:.3f}", f"{b.base_theta_loco_f1:.3f}",
+                         f"{b.base_late_f1:.3f}", ""])
+        hi = []
+        for _, r in keep.sort_values("late_f1", ascending=False).iterrows():
+            rows.append([V3_NAMES[r.experiment], f"{r.insample_f1:.3f}", f"{r.theta_loco_f1:.3f}",
+                         f"{r.late_f1:.3f}", "adopted" if r.adopt else "–"])
+            if r.adopt:
+                hi.append(len(rows) - 1)
+        table(s, 0.6, 4.05, 5.9, rows[:10], [2.45, 0.85, 0.85, 0.9, 0.85], size=10, row_h=0.29,
+              highlight_rows=tuple(hi[:1]))
     abl = d["abl"]
-    short = {"1a": "D1 residual only", "1b": "D2 change only", "1c": "D3 shape only",
-             "1d": "D1 + D2 + D3 (shape on)", "2": "D1 + D2, no calibration", "3": "+ calibration, plain threshold",
-             "4": "+ hysteresis", "5": "+ cooldown, max length", "6": "+ pause, re-baseline (full)"}
-    labels = [short.get(v.split(" ", 1)[0], v) for v in abl.variant]
+    labels = [v.split(" ", 1)[1] if " " in v else v for v in abl.variant]
     colors = [BLUE if v.startswith("6") else "B8B6AE" for v in abl.variant]
-    bar_chart(s, 7.15, 1.55, 5.6, 4.0, labels, [round(v, 3) for v in abl.et_f1], colors, font_size=11,
+    bar_chart(s, 7.0, 1.55, 5.75, 4.3, labels, [round(v, 3) for v in abl.et_f1], colors, font_size=10,
               max_v=max(abl.et_f1) * 1.25)
-    text(s, 7.15, 5.5, 5.6, 0.35, "Ablation: trigger-based event F1 (ET), each variant with its own best θ_enter",
-         size=11, color=MUTED)
-    what = {"stage1": "detector params", "stage2a": "θ, hysteresis, smoothing", "stage2b": "cooldown, max length",
-            "stage3a": "Fisher, peak-or-mean, learn in cooldown", "stage3b": "season ACF, log1p",
-            "stage3c": "capped CUSUM", "stage3d": "shape detector off", "stage3e": "deseasonalized CUSUM"}
-    lines, prev = [], None
-    for st in srch["stages"]:
-        key = st["stage"].split("_")[0]
-        res = (f"ET F1 {st['best_et_f1']:.3f}" if st["best_hash"] != prev else "no gain, kept")
-        lines.append([(f"{key.replace('stage', 'S')} ", {"bold": True}),
-                      (f"{what.get(key, '')} ({st['n_configs']}): {res}", {})])
-        prev = st["best_hash"]
-    fin = srch["final"]
-    held = held_text(srch)
-    lines.append([("Final ", {"bold": True}),
-                  (f"ET F1 {fin['f1']:.3f} (stability rule); {held}", {})])
-    text(s, 0.6, 4.85, 6.3, 2.1, lines, size=11, color=INK2, spacing=1)
+    text(s, 7.0, 5.85, 5.75, 0.6, "Ablation of the final system: trigger-based event F1 (ET), each variant "
+                                  "with its own best θ_enter (results/ablation.csv)", size=11, color=MUTED)
     footer(s, 6)
-    notes(s, "Each stage keeps the best of the previous one. The all-files F1 is optimistic; the nested LOCO number "
-             "re-runs the whole search without the held-out category and is what a new category would see.")
+    notes(s, "Adoption rule, fixed before the v3 runs: a candidate must beat the current system on held-out "
+             "categories (θ chosen on six, scored on the seventh) and on the late half of every file (θ chosen "
+             "on the early halves), and the paired bootstrap mean must be positive. Most candidates improved "
+             "in-sample by 0.04–0.06 and still failed one of the two checks.")
 
 
 def s7_evaluation(prs, d):
@@ -568,15 +606,15 @@ def s7_evaluation(prs, d):
              (f"flagging every row scores {val('all_anomalous', 'E1_f1'):.2f} under an overlap event F1, "
               f"{val('all_anomalous', 'ET_f1'):.2f} under ours; random 1% of rows: "
               f"{val('random_1pct', 'ET_f1'):.2f}. Details: reports/metric_audit.md.", {})]], size=12, color=INK2)
-    text(s, x0, 5.15, w, 0.4, "Nested leave-one-category-out (LOCO)", size=16, bold=True)
+    text(s, x0, 5.15, w, 0.4, "Two held-out checks: categories and time", size=16, bold=True)
     cats = ["Art. none", "Art. anom.", "AWS", "AdExch.", "Known", "Traffic", "Tweets"]
     for i, c in enumerate(cats):
         held = i == 4
         box_text(s, x0 + i * 0.81, 5.6, 0.75, 0.5, [[(c, {"size": 10, "bold": held,
                                                            "color": WHITE if held else INK2})]],
                  fill=BLUE if held else TINT2, align=PP_ALIGN.CENTER, margin=0.03)
-    text(s, x0, 6.15, w, 0.8, "The whole staged search runs on 6 categories; its pick is scored on the 7th. "
-                              "Run for 3 of 7 categories (cost); one global config, no per-file tuning.",
+    text(s, x0, 6.15, w, 0.8, "θ-LOCO: θ chosen on 6 categories, scored on the 7th. Time split: θ chosen on "
+                              "the early half of every file, scored on the late half. One global config.",
          size=12, color=INK2)
     pc = d["m"]["per_category"]
     cats2 = [c for c in pc if pc[c]["trigger"]["n_windows"]]
@@ -613,15 +651,25 @@ def s8_results(prs, d):
     m, srch, base, rt = d["m"]["overall"], d["search"], d["base"], d["rt"]
     t = m["trigger"]
     hv, hl = held_out(srch)
+    if d.get("val"):
+        c = d["val"]["candidate"]
+        hv = c["theta_loco"]["f1"]
+        hl = f"held-out categories (θ-LOCO); late halves {c['time_split']['late']['f1']:.2f}"
     ci = d["m"]["bootstrap"]["f1_ci95"]
     title(s, "Results: Sentinel vs baselines on the same metric and protocol")
     stat(s, 0.6, 1.3, 2.85, f"{t['f1']:.2f}", f"ET F1, all files (95% CI {ci[0]:.2f}–{ci[1]:.2f})", color=BLUE)
     stat(s, 3.6, 1.3, 2.85, f"{hv:.2f}", hl, color=BLUE)
     stat(s, 6.6, 1.3, 2.85, f"{t['precision']:.2f} / {t['recall']:.2f}",
          f"precision / recall ({t['tp']}/{t['n_windows']} windows, {t['fp']} false)")
-    stat(s, 9.6, 1.3, 3.1, f"{rt['us_per_point']['mean']:.0f} µs", "per point, one CPU core")
+    fe = rt.get("fast_engine", {})
+    if fe.get("available"):
+        stat(s, 9.6, 1.3, 3.1, f"{fe['us_per_point_mean']:.1f} µs",
+             f"per point, compiled engine ({rt['us_per_point']['mean']:.0f} µs streaming API)")
+    else:
+        stat(s, 9.6, 1.3, 3.1, f"{rt['us_per_point']['mean']:.0f} µs", "per point, one CPU core")
     keep = base[base.detector != "null"].copy()
-    best = keep[keep.detector != "sentinel"].sort_values("et_f1", ascending=False).groupby("detector").head(1)
+    best = keep[~keep.detector.isin(["sentinel", "sentinel_v2"])].sort_values(
+        "et_f1", ascending=False).groupby("detector").head(1)
     rows = [["Method", "ET F1", "Held-out", "Precision", "Recall", "False alerts", "E1 F1", "NAB"]]
     sen = keep[keep.detector == "sentinel"].iloc[0]
     nice = {"rolling_z": "Rolling z-score", "iforest": "Isolation Forest", "lof": "LOF", "ocsvm": "One-Class SVM",
@@ -630,15 +678,21 @@ def s8_results(prs, d):
 
     def fmt(v):
         return "–" if pd.isna(v) else f"{v:.3f}"
-    rows.append(["Sentinel", fmt(sen.et_f1), fmt(sen.cv_et_f1), fmt(sen.et_precision), fmt(sen.et_recall),
+    rows.append(["Sentinel v3 (" + " + ".join(DET_INFO[n][0].split()[0] for n in enabled(d["cfg"])) + ")",
+                 fmt(sen.et_f1), fmt(sen.cv_et_f1), fmt(sen.et_precision), fmt(sen.et_recall),
                  int(sen.false_alerts), fmt(sen.e1_f1), f"{sen.nab_official:.1f}"])
+    v2 = keep[keep.detector == "sentinel_v2"]
+    if len(v2):
+        r = v2.iloc[0]
+        rows.append(["Sentinel v2 (D1 + D2, previous)", fmt(r.et_f1), fmt(r.cv_et_f1), fmt(r.et_precision),
+                     fmt(r.et_recall), int(r.false_alerts), fmt(r.e1_f1), f"{r.nab_official:.1f}"])
     for _, r in best.sort_values("et_f1", ascending=False).iterrows():
         rows.append([f"{nice.get(r.detector, r.detector)} ({vnice.get(r.variant, r.variant)})", fmt(r.et_f1),
                      fmt(r.cv_et_f1), fmt(r.et_precision), fmt(r.et_recall), int(r.false_alerts),
                      fmt(r.e1_f1), f"{r.nab_official:.1f}"])
-    table(s, 0.6, 2.95, 12.1, rows, [4.1, 1.0, 1.1, 1.15, 1.0, 1.35, 1.0, 1.4], size=12, row_h=0.4,
+    table(s, 0.6, 2.95, 12.1, rows, [4.1, 1.0, 1.1, 1.15, 1.0, 1.35, 1.0, 1.4], size=11, row_h=0.36,
           highlight_rows=(1,))
-    text(s, 0.6, 2.95 + 0.4 * len(rows) + 0.1, 12.1, 0.9,
+    text(s, 0.6, 2.95 + 0.36 * len(rows) + 0.1, 12.1, 0.9,
          "Best variant of each baseline (full table: results/baselines_comparison.csv). Held-out column: θ chosen on "
          "6 categories, scored on the 7th, for every method (Sentinel's other settings were tuned on all files). NAB = NAB standard score, every ANOMALOUS row a detection "
          "(checked against NAB's own code). " + pub_note(),
