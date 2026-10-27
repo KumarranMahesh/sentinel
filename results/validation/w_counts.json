@@ -1,0 +1,141 @@
+{
+ "base": {
+  "insample_pick": "theta_enter=3.5",
+  "insample": {
+   "tp": 52,
+   "fp": 49,
+   "fn": 64,
+   "precision": 0.5148514851485149,
+   "recall": 0.4482758620689655,
+   "f1": 0.47926267281105994
+  },
+  "theta_loco": {
+   "tp": 52,
+   "fp": 49,
+   "fn": 64,
+   "precision": 0.5148514851485149,
+   "recall": 0.4482758620689655,
+   "f1": 0.47926267281105994,
+   "picks": {
+    "artificialNoAnomaly": "theta_enter=3.5",
+    "artificialWithAnomaly": "theta_enter=3.5",
+    "realAWSCloudwatch": "theta_enter=3.5",
+    "realAdExchange": "theta_enter=3.5",
+    "realKnownCause": "theta_enter=3.5",
+    "realTraffic": "theta_enter=3.5",
+    "realTweets": "theta_enter=3.5"
+   }
+  },
+  "time_split": {
+   "pick": "theta_enter=3.5",
+   "early": {
+    "tp": 23,
+    "fp": 25,
+    "fn": 36,
+    "precision": 0.4791666666666667,
+    "recall": 0.3898305084745763,
+    "f1": 0.4299065420560748
+   },
+   "late": {
+    "tp": 29,
+    "fp": 24,
+    "fn": 28,
+    "precision": 0.5471698113207547,
+    "recall": 0.5087719298245614,
+    "f1": 0.5272727272727273
+   },
+   "late_by_config": {
+    "theta_enter=3.5": 0.5273,
+    "theta_enter=4.0": 0.52,
+    "theta_enter=4.5": 0.4494,
+    "theta_enter=5.0": 0.5,
+    "theta_enter=5.5": 0.425
+   }
+  }
+ },
+ "candidate": {
+  "insample_pick": "theta_enter=4.0",
+  "insample": {
+   "tp": 37,
+   "fp": 37,
+   "fn": 79,
+   "precision": 0.5,
+   "recall": 0.31896551724137934,
+   "f1": 0.38947368421052636
+  },
+  "theta_loco": {
+   "tp": 37,
+   "fp": 37,
+   "fn": 79,
+   "precision": 0.5,
+   "recall": 0.31896551724137934,
+   "f1": 0.38947368421052636,
+   "picks": {
+    "artificialNoAnomaly": "theta_enter=4.0",
+    "artificialWithAnomaly": "theta_enter=4.0",
+    "realAWSCloudwatch": "theta_enter=4.0",
+    "realAdExchange": "theta_enter=4.0",
+    "realKnownCause": "theta_enter=4.0",
+    "realTraffic": "theta_enter=4.0",
+    "realTweets": "theta_enter=4.0"
+   }
+  },
+  "time_split": {
+   "pick": "theta_enter=3.5",
+   "early": {
+    "tp": 17,
+    "fp": 30,
+    "fn": 42,
+    "precision": 0.3617021276595745,
+    "recall": 0.288135593220339,
+    "f1": 0.32075471698113206
+   },
+   "late": {
+    "tp": 24,
+    "fp": 26,
+    "fn": 33,
+    "precision": 0.48,
+    "recall": 0.42105263157894735,
+    "f1": 0.44859813084112143
+   },
+   "late_by_config": {
+    "theta_enter=3.5": 0.4486,
+    "theta_enter=4.0": 0.4894,
+    "theta_enter=4.5": 0.4337,
+    "theta_enter=5.0": 0.4444,
+    "theta_enter=5.5": 0.4103
+   }
+  }
+ },
+ "bootstrap_insample": {
+  "diff": -0.08978898860053358,
+  "mean": -0.0892924067987597,
+  "ci95": [
+   -0.14529415665833537,
+   -0.03774197068955999
+  ],
+  "p_le_0": 0.9995
+ },
+ "adopt": false,
+ "candidate_spec": {
+  "config": "/home/claude/w/repo/configs/final.yaml",
+  "set": [
+   "transform.counts=anscombe"
+  ],
+  "grid": [],
+  "thetas": [
+   3.5,
+   4.0,
+   4.5,
+   5.0,
+   5.5
+  ]
+ },
+ "insample_all": {
+  "theta_enter=3.5": 0.385,
+  "theta_enter=4.0": 0.3895,
+  "theta_enter=4.5": 0.3509,
+  "theta_enter=5.0": 0.3558,
+  "theta_enter=5.5": 0.3312
+ }
+}
