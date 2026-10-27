@@ -1,15 +1,17 @@
 """Event state machine: hysteresis, max length and cooldown (PLAN.md 7.7).
 
 NORMAL -> ANOMALOUS when U >= theta_enter; stay while U >= theta_exit and length < L_max;
-then COOLDOWN for c points (labelled NORMAL, no new events), then NORMAL.
+then COOLDOWN for c points (labelled NORMAL, no new events unless U >= reenter, optional),
+then NORMAL.
 Pausing and re-baselining are done by the pipeline, which owns the detectors.
 """
 PROBATION, NORMAL, ANOMALOUS, COOLDOWN = "PROBATION", "NORMAL", "ANOMALOUS", "COOLDOWN"
 
 
 class EventMachine:
-    def __init__(self, theta_enter, theta_exit, cooldown, max_len):
+    def __init__(self, theta_enter, theta_exit, cooldown, max_len, reenter=None):
         self.enter = theta_enter
+        self.reenter = reenter      # optional: a new event may start during COOLDOWN if U >= reenter
         self.exit = theta_exit
         self.cooldown = int(cooldown)
         self.max_len = int(max_len)
@@ -21,6 +23,9 @@ class EventMachine:
         """Return (state, started, ended) for this point."""
         started = ended = False
         if self.state == COOLDOWN:
+            if self.reenter is not None and u >= self.reenter:
+                self.state, self.length, self.cool_left = ANOMALOUS, 1, 0
+                return self.state, True, False
             if self.cool_left > 0:
                 self.cool_left -= 1
                 return self.state, False, False

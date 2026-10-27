@@ -16,7 +16,7 @@ import numpy as np
 
 from .calibration import P99Calibrator, make_calibrator
 from .config import load_config
-from .detectors import ORDER, ChangeDetector, ResidualDetector, ShapeDetector
+from .detectors import ORDER, ChangeDetector, LofDetector, ResidualDetector, ShapeDetector
 from .events import ANOMALOUS, COOLDOWN, NORMAL, PROBATION, EventMachine, PlainThreshold
 from .evidence import explanation, fmt_ts, round_floats
 from .fusion import FUSERS
@@ -59,7 +59,7 @@ class StreamingSentinel:
         c = self.cfg = config if config is not None else load_config()
         p = probation_len if probation_len is not None else c["probation"]["default_len"]
         self.P = max(int(p), 2)
-        self.names = [n for n in ORDER if c[n]["enabled"]]
+        self.names = [n for n in ORDER if c.get(n, {}).get("enabled")]
         ev = c["events"]
         self.event_logic = ev["enabled"]
         # label_len: how many rows of each event are labelled ANOMALOUS, starting at the
@@ -68,8 +68,10 @@ class StreamingSentinel:
         ll = ev.get("label_len")
         self.label_len = None if ll is None else max(int(ll), 1)
         if self.event_logic:
+            ro = ev.get("reenter_offset")       # optional: re-trigger during cooldown
             self.machine = EventMachine(ev["theta_enter"], ev["theta_enter"] - ev["exit_offset"],
-                                        ev["cooldown"], ev["max_len"])
+                                        ev["cooldown"], ev["max_len"],
+                                        reenter=None if ro is None else ev["theta_enter"] + ro)
             self.pause, self.rebase = ev["pause"], ev["rebaseline"]
         else:
             self.machine = PlainThreshold(ev["theta_enter"])
@@ -145,8 +147,10 @@ class StreamingSentinel:
                                                recent=c["events"]["rebaseline_r"])
             elif name == "change":
                 d = self.d2 = ChangeDetector(c["change"], med, rs, vmean, floor)
-            else:
+            elif name == "shape":
                 d = ShapeDetector(c["shape"], floor)
+            else:
+                d = LofDetector(c["lof"], xs)
             self.dets.append(d)
             self.cals.append(make_calibrator(c["calibration"]))
         if (c["change"].get("deseasonalize") and self.d1 is not None and self.d2 is not None

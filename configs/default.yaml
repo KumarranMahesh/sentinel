@@ -33,6 +33,11 @@ shape:                   # D3
   m: 32                  # subsequence length
   history: 2000          # H, stored past subsequences
 
+lof:                     # D4, optional (off by default)
+  enabled: false
+  window: 16             # feature window (values + differences), as the LOF baseline
+  neighbors: 20
+
 calibration:
   buffer: 2000           # C, raw scores kept per detector
   tail_q: 0.95           # tail-fit threshold quantile

@@ -41,6 +41,9 @@ def sentence(name, ev):
         typ = ev.get("typical_p95")
         tail = f" (typical < {typ:.2f})" if typ is not None else ""
         return f"Unusual shape: nearest past pattern distance {ev['nn_distance']:.2f}{tail}."
+    if name == "lof":
+        return (f"Unusual recent pattern: local outlier factor {ev['lof']:.2f} vs the learning period "
+                f"(about 1 = typical) over the last {ev['window']} points.")
     return "Anomalous."
 
 
