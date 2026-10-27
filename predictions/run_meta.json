@@ -2,8 +2,8 @@
   "detector": "sentinel",
   "variant": "raw",
   "config": "configs/final.yaml",
-  "config_hash": "704d72f8d6",
+  "config_hash": "415ce1f854",
   "files": 58,
-  "events": 101,
-  "seconds": 10.4
+  "events": 91,
+  "seconds": 13.2
 }

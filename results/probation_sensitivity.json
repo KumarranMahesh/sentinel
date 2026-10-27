@@ -1,20 +1,20 @@
 {
-  "config": "/home/claude/work/project/configs/final.yaml",
+  "config": "/home/claude/w/repo/configs/final.yaml",
   "files_with_nab_probation_below_750": 43,
   "nab_rule": {
-    "et_f1": 0.47926267281105994,
-    "et_precision": 0.5148514851485149,
-    "et_recall": 0.4482758620689655,
-    "tp": 52,
-    "false_alerts": 49,
-    "nab_official": 38.780481395861884
+    "et_f1": 0.5410628019323672,
+    "et_precision": 0.6153846153846154,
+    "et_recall": 0.4827586206896552,
+    "tp": 56,
+    "false_alerts": 35,
+    "nab_official": 42.049543453751745
   },
   "fixed_750": {
-    "et_f1": 0.4739336492890995,
-    "et_precision": 0.5263157894736842,
-    "et_recall": 0.43103448275862066,
-    "tp": 50,
-    "false_alerts": 45,
-    "nab_official": 37.0950212253466
+    "et_f1": 0.53,
+    "et_precision": 0.6309523809523809,
+    "et_recall": 0.45689655172413796,
+    "tp": 53,
+    "false_alerts": 31,
+    "nab_official": 39.5827893449648
   }
 }

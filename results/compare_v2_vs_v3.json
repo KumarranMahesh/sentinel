@@ -1,0 +1,24 @@
+{
+  "a": "v2",
+  "b": "v3",
+  "metric": "micro trigger-based event F1 (ET)",
+  "et_f1_a": 0.47926267281105994,
+  "et_f1_b": 0.5410628019323672,
+  "diff": 0.06180012912130728,
+  "diff_ci95": [
+    -0.0007823536408970916,
+    0.12924209502352776
+  ],
+  "p_diff_le_0": 0.0265,
+  "n_boot": 2000,
+  "seed": 42,
+  "tp_fp_a": [
+    52,
+    49
+  ],
+  "tp_fp_b": [
+    56,
+    35
+  ],
+  "note": "paired bootstrap over files; in-sample if either config was selected on these labels"
+}

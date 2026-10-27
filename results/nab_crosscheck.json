@@ -5,23 +5,23 @@
   "perfect_raw": 116.0,
   "profile": "standard",
   "runs": {
-    "alertscore": {
-      "flagged_rows": 101,
-      "alerts": 101,
+    "sentinel_final": {
+      "flagged_rows": 91,
+      "alerts": 91,
       "rows": {
-        "nab_code_raw": -26.029283161600443,
-        "nab_code_score": 38.78048139586188,
-        "ours_score": 38.780481395861884
+        "nab_code_raw": -18.445059187295957,
+        "nab_code_score": 42.049543453751745,
+        "ours_score": 42.049543453751745
       },
       "onsets": {
-        "nab_code_raw": -26.029283161600443,
-        "nab_code_score": 38.78048139586188,
-        "ours_score": 38.780481395861884
+        "nab_code_raw": -18.445059187295957,
+        "nab_code_score": 42.049543453751745,
+        "ours_score": 42.049543453751745
       },
       "scores_label_optimised_threshold": {
-        "threshold": 0.999842,
-        "nab_code_raw": -26.02928316160044,
-        "nab_code_score": 38.780481395861884
+        "threshold": 0.999995,
+        "nab_code_raw": -18.445059187295957,
+        "nab_code_score": 42.049543453751745
       }
     }
   }

@@ -1,509 +1,394 @@
 {
   "windows_scored": 116,
-  "detected": 52,
-  "missed": 64,
+  "detected": 56,
+  "missed": 60,
   "missed_by_reason": [
     [
       "weak_signal",
-      38
+      35
     ],
     [
       "busy",
-      13
+      14
     ],
     [
       "near_threshold",
-      11
+      6
     ],
     [
       "early_trigger",
-      2
+      5
     ]
   ],
   "missed_by_category": [
     [
       "realAWSCloudwatch",
-      17
-    ],
-    [
-      "realKnownCause",
-      12
+      15
     ],
     [
       "realTweets",
-      12
+      14
+    ],
+    [
+      "realKnownCause",
+      10
     ],
     [
       "realTraffic",
-      11
+      10
     ],
     [
       "realAdExchange",
-      10
+      9
     ],
     [
       "artificialWithAnomaly",
       2
     ]
   ],
-  "missed_visible": 53,
+  "missed_visible": 50,
   "missed_lof_hits": 13,
   "missed_reason_x_visible": {
-    "busy|not_visible": 2,
+    "busy|not_visible": 3,
     "busy|visible": 11,
-    "early_trigger|visible": 2,
+    "early_trigger|not_visible": 1,
+    "early_trigger|visible": 4,
     "near_threshold|not_visible": 1,
-    "near_threshold|visible": 10,
-    "weak_signal|not_visible": 8,
+    "near_threshold|visible": 5,
+    "weak_signal|not_visible": 5,
     "weak_signal|visible": 30
   },
-  "false_alerts": 49,
+  "false_alerts": 35,
   "fp_by_kind": [
     [
       "far_from_windows",
-      41
+      30
     ],
     [
       "just_before_window",
-      4
-    ],
-    [
-      "just_after_window",
-      3
-    ],
-    [
-      "anomaly_free_file",
-      1
+      5
     ]
   ],
   "fp_by_category": [
     [
-      "realTweets",
-      23
+      "realKnownCause",
+      14
     ],
     [
-      "realKnownCause",
+      "realTweets",
       12
     ],
     [
       "realAWSCloudwatch",
-      9
+      5
     ],
     [
       "realAdExchange",
-      2
+      3
     ],
     [
-      "realTraffic",
-      2
-    ],
-    [
-      "artificialNoAnomaly",
+      "artificialWithAnomaly",
       1
     ]
   ],
   "fp_by_detector": [
     [
+      "subspace",
+      18
+    ],
+    [
       "change",
-      34
+      8
+    ],
+    [
+      "lof",
+      6
     ],
     [
       "residual",
-      15
+      3
     ]
   ],
   "false_alert_list": [
     {
-      "file": "artificialNoAnomaly/art_noisy.csv",
-      "category": "artificialNoAnomaly",
-      "index": 1130,
-      "top_detector": "change",
-      "kind": "anomaly_free_file",
-      "gap_rows": null
+      "file": "artificialWithAnomaly/art_load_balancer_spikes.csv",
+      "category": "artificialWithAnomaly",
+      "index": 765,
+      "top_detector": "subspace",
+      "kind": "far_from_windows",
+      "gap_rows": 1969
     },
     {
       "file": "realAWSCloudwatch/ec2_cpu_utilization_77c1ca.csv",
-      "category": "realAWSCloudwatch",
-      "index": 896,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": 869
-    },
-    {
-      "file": "realAWSCloudwatch/ec2_cpu_utilization_77c1ca.csv",
-      "category": "realAWSCloudwatch",
-      "index": 1316,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": 449
-    },
-    {
-      "file": "realAWSCloudwatch/ec2_cpu_utilization_fe7f93.csv",
-      "category": "realAWSCloudwatch",
-      "index": 2930,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -261
-    },
-    {
-      "file": "realAWSCloudwatch/ec2_disk_write_bytes_c0d644.csv",
       "category": "realAWSCloudwatch",
       "index": 1317,
       "top_detector": "residual",
       "kind": "far_from_windows",
-      "gap_rows": 477
+      "gap_rows": 448
     },
     {
       "file": "realAWSCloudwatch/ec2_disk_write_bytes_c0d644.csv",
       "category": "realAWSCloudwatch",
-      "index": 3243,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": -145
+      "index": 1790,
+      "top_detector": "lof",
+      "kind": "just_before_window",
+      "gap_rows": 4
     },
     {
       "file": "realAWSCloudwatch/ec2_network_in_257a54.csv",
       "category": "realAWSCloudwatch",
-      "index": 2209,
-      "top_detector": "residual",
-      "kind": "just_after_window",
-      "gap_rows": -370
-    },
-    {
-      "file": "realAWSCloudwatch/ec2_network_in_257a54.csv",
-      "category": "realAWSCloudwatch",
-      "index": 3647,
+      "index": 3648,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": -1808
+      "gap_rows": -1809
     },
     {
       "file": "realAWSCloudwatch/grok_asg_anomaly.csv",
       "category": "realAWSCloudwatch",
-      "index": 956,
+      "index": 961,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": 221
+      "gap_rows": 216
     },
     {
       "file": "realAWSCloudwatch/iio_us-east-1_i-a2eb1cd9_NetworkIn.csv",
       "category": "realAWSCloudwatch",
-      "index": 202,
+      "index": 203,
       "top_detector": "residual",
       "kind": "just_before_window",
-      "gap_rows": 16
+      "gap_rows": 15
     },
     {
       "file": "realAdExchange/exchange-2_cpc_results.csv",
       "category": "realAdExchange",
-      "index": 1495,
-      "top_detector": "change",
+      "index": 1487,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": -1089
+      "gap_rows": -1081
+    },
+    {
+      "file": "realAdExchange/exchange-2_cpm_results.csv",
+      "category": "realAdExchange",
+      "index": 362,
+      "top_detector": "lof",
+      "kind": "far_from_windows",
+      "gap_rows": 203
     },
     {
       "file": "realAdExchange/exchange-4_cpm_results.csv",
       "category": "realAdExchange",
-      "index": 311,
-      "top_detector": "change",
-      "kind": "just_before_window",
-      "gap_rows": 36
+      "index": 246,
+      "top_detector": "subspace",
+      "kind": "far_from_windows",
+      "gap_rows": 101
     },
     {
       "file": "realKnownCause/ambient_temperature_system_failure.csv",
       "category": "realKnownCause",
-      "index": 1832,
-      "top_detector": "change",
+      "index": 782,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": 1708
+      "gap_rows": 2758
     },
     {
       "file": "realKnownCause/ambient_temperature_system_failure.csv",
       "category": "realKnownCause",
-      "index": 5038,
-      "top_detector": "residual",
+      "index": 1830,
+      "top_detector": "lof",
       "kind": "far_from_windows",
-      "gap_rows": 961
+      "gap_rows": 1710
+    },
+    {
+      "file": "realKnownCause/ambient_temperature_system_failure.csv",
+      "category": "realKnownCause",
+      "index": 5885,
+      "top_detector": "subspace",
+      "kind": "just_before_window",
+      "gap_rows": 114
     },
     {
       "file": "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
       "category": "realKnownCause",
-      "index": 4597,
-      "top_detector": "change",
+      "index": 818,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": 11954
+      "gap_rows": 15733
     },
     {
       "file": "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
       "category": "realKnownCause",
-      "index": 5953,
-      "top_detector": "change",
+      "index": 2832,
+      "top_detector": "lof",
       "kind": "far_from_windows",
-      "gap_rows": 10598
+      "gap_rows": 13719
     },
     {
       "file": "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
       "category": "realKnownCause",
-      "index": 6803,
+      "index": 6806,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": 9748
+      "gap_rows": 9745
     },
     {
       "file": "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
       "category": "realKnownCause",
-      "index": 10138,
+      "index": 8011,
+      "top_detector": "lof",
+      "kind": "far_from_windows",
+      "gap_rows": 8540
+    },
+    {
+      "file": "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
+      "category": "realKnownCause",
+      "index": 10142,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": 6413
+      "gap_rows": 6409
     },
     {
       "file": "realKnownCause/machine_temperature_system_failure.csv",
       "category": "realKnownCause",
-      "index": 9695,
-      "top_detector": "change",
+      "index": 7180,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": -5426
+      "gap_rows": -2911
     },
     {
       "file": "realKnownCause/machine_temperature_system_failure.csv",
       "category": "realKnownCause",
-      "index": 12824,
-      "top_detector": "residual",
+      "index": 9727,
+      "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": 3233
+      "gap_rows": -5458
     },
     {
       "file": "realKnownCause/machine_temperature_system_failure.csv",
       "category": "realKnownCause",
-      "index": 17900,
-      "top_detector": "residual",
+      "index": 15178,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": -1277
+      "gap_rows": 879
     },
     {
-      "file": "realKnownCause/nyc_taxi.csv",
+      "file": "realKnownCause/machine_temperature_system_failure.csv",
       "category": "realKnownCause",
-      "index": 1028,
-      "top_detector": "change",
+      "index": 17902,
+      "top_detector": "residual",
       "kind": "far_from_windows",
-      "gap_rows": 4811
+      "gap_rows": -1279
     },
     {
       "file": "realKnownCause/rogue_agent_key_hold.csv",
       "category": "realKnownCause",
-      "index": 352,
-      "top_detector": "change",
+      "index": 434,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": 317
+      "gap_rows": 235
     },
     {
-      "file": "realKnownCause/rogue_agent_key_hold.csv",
+      "file": "realKnownCause/rogue_agent_key_updown.csv",
       "category": "realKnownCause",
-      "index": 1112,
-      "top_detector": "residual",
+      "index": 1149,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": 128
-    },
-    {
-      "file": "realTraffic/TravelTime_387.csv",
-      "category": "realTraffic",
-      "index": 2041,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": -474
-    },
-    {
-      "file": "realTraffic/speed_6005.csv",
-      "category": "realTraffic",
-      "index": 916,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": 1345
+      "gap_rows": 1094
     },
     {
       "file": "realTweets/Twitter_volume_AAPL.csv",
       "category": "realTweets",
-      "index": 4370,
-      "top_detector": "change",
+      "index": 13448,
+      "top_detector": "subspace",
+      "kind": "far_from_windows",
+      "gap_rows": -3965
+    },
+    {
+      "file": "realTweets/Twitter_volume_AMZN.csv",
+      "category": "realTweets",
+      "index": 6368,
+      "top_detector": "subspace",
+      "kind": "far_from_windows",
+      "gap_rows": -2436
+    },
+    {
+      "file": "realTweets/Twitter_volume_AMZN.csv",
+      "category": "realTweets",
+      "index": 11072,
+      "top_detector": "subspace",
       "kind": "just_before_window",
-      "gap_rows": 391
+      "gap_rows": 337
     },
     {
-      "file": "realTweets/Twitter_volume_AAPL.csv",
+      "file": "realTweets/Twitter_volume_CVS.csv",
       "category": "realTweets",
-      "index": 13447,
-      "top_detector": "change",
+      "index": 6090,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": -3964
-    },
-    {
-      "file": "realTweets/Twitter_volume_AMZN.csv",
-      "category": "realTweets",
-      "index": 1387,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": 409
-    },
-    {
-      "file": "realTweets/Twitter_volume_AMZN.csv",
-      "category": "realTweets",
-      "index": 6659,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": -2727
-    },
-    {
-      "file": "realTweets/Twitter_volume_AMZN.csv",
-      "category": "realTweets",
-      "index": 10877,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": 532
-    },
-    {
-      "file": "realTweets/Twitter_volume_CRM.csv",
-      "category": "realTweets",
-      "index": 1111,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": 1761
-    },
-    {
-      "file": "realTweets/Twitter_volume_CRM.csv",
-      "category": "realTweets",
-      "index": 12020,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -3722
-    },
-    {
-      "file": "realTweets/Twitter_volume_FB.csv",
-      "category": "realTweets",
-      "index": 11166,
-      "top_detector": "change",
-      "kind": "just_after_window",
-      "gap_rows": -450
-    },
-    {
-      "file": "realTweets/Twitter_volume_FB.csv",
-      "category": "realTweets",
-      "index": 13225,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -2509
-    },
-    {
-      "file": "realTweets/Twitter_volume_FB.csv",
-      "category": "realTweets",
-      "index": 15829,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -5113
+      "gap_rows": 1685
     },
     {
       "file": "realTweets/Twitter_volume_GOOG.csv",
       "category": "realTweets",
-      "index": 1134,
-      "top_detector": "change",
+      "index": 14252,
+      "top_detector": "lof",
       "kind": "far_from_windows",
-      "gap_rows": 2972
-    },
-    {
-      "file": "realTweets/Twitter_volume_GOOG.csv",
-      "category": "realTweets",
-      "index": 8450,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": 949
+      "gap_rows": -4457
     },
     {
       "file": "realTweets/Twitter_volume_IBM.csv",
       "category": "realTweets",
-      "index": 5381,
-      "top_detector": "change",
+      "index": 4811,
+      "top_detector": "subspace",
       "kind": "far_from_windows",
-      "gap_rows": 1431
-    },
-    {
-      "file": "realTweets/Twitter_volume_IBM.csv",
-      "category": "realTweets",
-      "index": 9396,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -1790
+      "gap_rows": 2001
     },
     {
       "file": "realTweets/Twitter_volume_KO.csv",
       "category": "realTweets",
-      "index": 5795,
-      "top_detector": "change",
+      "index": 5794,
+      "top_detector": "subspace",
       "kind": "just_before_window",
-      "gap_rows": 175
+      "gap_rows": 176
     },
     {
       "file": "realTweets/Twitter_volume_KO.csv",
       "category": "realTweets",
-      "index": 9453,
+      "index": 9456,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": 2115
+      "gap_rows": 2112
     },
     {
-      "file": "realTweets/Twitter_volume_KO.csv",
+      "file": "realTweets/Twitter_volume_PFE.csv",
       "category": "realTweets",
-      "index": 14388,
+      "index": 7112,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": -670
+      "gap_rows": -2615
+    },
+    {
+      "file": "realTweets/Twitter_volume_PFE.csv",
+      "category": "realTweets",
+      "index": 9529,
+      "top_detector": "subspace",
+      "kind": "far_from_windows",
+      "gap_rows": 1817
+    },
+    {
+      "file": "realTweets/Twitter_volume_PFE.csv",
+      "category": "realTweets",
+      "index": 13727,
+      "top_detector": "subspace",
+      "kind": "far_from_windows",
+      "gap_rows": -1985
     },
     {
       "file": "realTweets/Twitter_volume_UPS.csv",
       "category": "realTweets",
-      "index": 5540,
+      "index": 13432,
       "top_detector": "change",
       "kind": "far_from_windows",
-      "gap_rows": 1749
-    },
-    {
-      "file": "realTweets/Twitter_volume_UPS.csv",
-      "category": "realTweets",
-      "index": 7917,
-      "top_detector": "residual",
-      "kind": "just_after_window",
-      "gap_rows": -312
-    },
-    {
-      "file": "realTweets/Twitter_volume_UPS.csv",
-      "category": "realTweets",
-      "index": 9787,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -764
-    },
-    {
-      "file": "realTweets/Twitter_volume_UPS.csv",
-      "category": "realTweets",
-      "index": 11149,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -2126
-    },
-    {
-      "file": "realTweets/Twitter_volume_UPS.csv",
-      "category": "realTweets",
-      "index": 11958,
-      "top_detector": "change",
-      "kind": "far_from_windows",
-      "gap_rows": -2935
-    },
-    {
-      "file": "realTweets/Twitter_volume_UPS.csv",
-      "category": "realTweets",
-      "index": 13429,
-      "top_detector": "residual",
-      "kind": "far_from_windows",
-      "gap_rows": -4406
+      "gap_rows": -4409
     }
   ]
 }
