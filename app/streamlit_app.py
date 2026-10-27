@@ -32,6 +32,12 @@ st.set_page_config(page_title="Sentinel demo", page_icon="🛰️", layout="wide
 
 @st.cache_resource
 def get_corpus():
+    if not (NAB_ROOT / "labels" / "combined_windows.json").exists():
+        # hosted deployments (e.g. Streamlit Community Cloud) start without data/raw/:
+        # install the pinned NAB commit once, verified against configs/nab_manifest.json
+        import subprocess
+        with st.spinner("First start: downloading the NAB data (about 50 MB, once)..."):
+            subprocess.run([sys.executable, str(ROOT / "scripts" / "download_nab.py")], check=False)
     if (NAB_ROOT / "labels" / "combined_windows.json").exists():
         return load_corpus()
     return {}
