@@ -11,6 +11,16 @@ Strategies (no detector, no labels used):
   random_1pct      1% of rows, seed 42 (one-row alerts)
   random_10pct     10% of rows, seed 42
   long_alerts_800  an 800-row alert starting every 2000 rows
+
+Simple causal detector (textbook settings, never tuned, no labels):
+  rolling_z_rows    rolling z-score (previous 100 rows), every row with |z| > 3 ANOMALOUS
+  rolling_z_events  same score, hysteresis 3/2, cooldown 200, max 400, only the trigger row labelled
+
+Timing references (built FROM THE LABELS, not detectors; they only show how each metric
+treats timing):
+  ref_window_start / ref_window_mid / ref_window_end   one trigger per window at that row
+  ref_before_window  one trigger 1 row before each window starts
+  ref_after_window   one trigger 1 row after each window ends
 """
 import argparse
 import sys
@@ -44,6 +54,26 @@ def strategies(n, p, rng):
     return out
 
 
+def causal_and_references(ser):
+    from sentinel.baselines import baseline_labels
+    out = {}
+    _, out["rolling_z_rows"] = baseline_labels("rolling_z", ser, "raw")
+    _, out["rolling_z_events"] = baseline_labels("rolling_z", ser, "event", label_len=1)
+    n = len(ser)
+    refs = {k: np.zeros(n, dtype=np.int8) for k in
+            ("ref_window_start", "ref_window_mid", "ref_window_end", "ref_before_window", "ref_after_window")}
+    for a, b in ser.windows:
+        refs["ref_window_start"][a] = 1
+        refs["ref_window_mid"][(a + b) // 2] = 1
+        refs["ref_window_end"][b] = 1
+        if a - 1 >= ser.probation:
+            refs["ref_before_window"][a - 1] = 1
+        if b + 1 < n:
+            refs["ref_after_window"][b + 1] = 1
+    out.update(refs)
+    return out
+
+
 def row(name, s):
     t = s["trigger"]
     return {"strategy": name,
@@ -52,7 +82,8 @@ def row(name, s):
             "ET_false_alerts": t["fp"], "composite_f1": s["composite"]["f1"],
             "pointwise_f1": s["pointwise"]["f1"],
             "nab_onsets": s["nab_standard"], "nab_official": s["nab_standard_official"],
-            "flagged_pct": 100 * s["flagged_fraction"]}
+            "flagged_pct": 100 * s["flagged_fraction"],
+            "median_trigger_delay_norm": s["trigger"]["delay"]["normalized_delay"]["median"]}
 
 
 def main():
@@ -66,6 +97,8 @@ def main():
     per = {}
     for name, ser in corpus.items():
         for k, lab in strategies(len(ser), ser.probation, rng).items():
+            per.setdefault(k, []).append(score_result(ser, lab))
+        for k, lab in causal_and_references(ser).items():
             per.setdefault(k, []).append(score_result(ser, lab))
     rows = [row(k, summarize(v)) for k, v in per.items()]
     for pred, label in zip(args.pred, args.name):

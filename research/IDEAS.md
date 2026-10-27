@@ -1,5 +1,11 @@
 # Beyond v1: what to try next (research notes, 2026-10-27)
 
+> **Status note (audit of 2026-10-27, later the same day).** This note was written while E1
+> (overlap event F1) was the primary metric. The audit made the trigger-based event F1 (ET) primary
+> (`reports/metric_audit.md`); v1 scores ET 0.444. Idea 4 (short alerts) is now the default output
+> convention (`events.label_len: 1`) and its rest-period part was added to the search grid. The
+> numbers below are historical v1 numbers on the E1 metric and are kept unchanged.
+
 Sentinel v1 today: event F1 **0.532** all files / **0.486** held-out (LOCO), NAB 40.7, 44 µs/point.
 This note has (1) a safety re-test, (2) where we stand against the published NAB detectors,
 (3) what papers and practitioners say, and (4) 13 ranked ideas. Nothing below is implemented yet.

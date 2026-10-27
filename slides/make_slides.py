@@ -43,6 +43,7 @@ def load():
         "abl": pd.read_csv(RES / "ablation.csv"),
         "rt": json.loads((RES / "runtime.json").read_text()),
         "cats": pd.read_csv(RES / "dataset_stats_by_category.csv"),
+        "audit": pd.read_csv(RES / "metric_audit.csv") if (RES / "metric_audit.csv").exists() else None,
     }
     d["cfg"] = yaml.safe_load((ROOT / "configs" / "final.yaml").read_text())
     d["storm"] = storm_counts()
@@ -60,7 +61,7 @@ def storm_counts():
     from sentinel.baselines import baseline_labels
     from sentinel.config import load_config
     from sentinel.io import load_corpus
-    from sentinel.metrics.windows import events_from_labels, overlaps, scored_windows
+    from sentinel.metrics.windows import events_from_labels, scored_windows
     from sentinel.runner import run_sentinel
     s = load_corpus(files=[STORM_FILE])[STORM_FILE]
     gt = scored_windows(s.windows, s.probation)
@@ -68,8 +69,8 @@ def storm_counts():
     sen = run_sentinel(s, load_config(ROOT / "configs" / "final.yaml"))["label"]
     out = {}
     for k, lab in (("z", z), ("sentinel", sen)):
-        ev = events_from_labels(lab, s.probation)
-        out[k] = (len(ev), sum(any(overlaps(e, w) for w in gt) for e in ev))
+        trig = [a for a, _ in events_from_labels(lab, s.probation)]
+        out[k] = (len(trig), sum(any(a <= t <= b for a, b in gt) for t in trig))
     return out
 
 
@@ -78,13 +79,14 @@ def pick_evidence():
     import sys
     sys.path.insert(0, str(ROOT / "src"))
     from sentinel.io import load_corpus
-    from sentinel.metrics.windows import overlaps, scored_windows
+    from sentinel.metrics.windows import scored_windows
     events = [json.loads(x) for x in (ROOT / "predictions" / "events.jsonl").read_text().splitlines()]
     corpus = load_corpus()
     tps, fps = [], []
     for e in events:
         s = corpus[e["file"]]
-        hit = any(overlaps((e["start_index"], e["end_index"]), w) for w in scored_windows(s.windows, s.probation))
+        t = e["start_index"]
+        hit = any(a <= t <= b for a, b in scored_windows(s.windows, s.probation))
         (tps if hit else fps).append(e)
     pref = ["realAWSCloudwatch/ec2_cpu_utilization_825cc2.csv", "realTweets/Twitter_volume_FB.csv",
             "realKnownCause/machine_temperature_system_failure.csv", "realAdExchange/exchange-2_cpc_results.csv"]
@@ -93,7 +95,10 @@ def pick_evidence():
         cand = [e for e in tps if e["file"] == f and e["top_detector"] == "residual"]
         if cand and len(good) < 2:
             good.append(max(cand, key=lambda e: e["peak_surprise"]))
-    bad = next((e for e in fps if e["file"] == "artificialWithAnomaly/art_daily_jumpsdown.csv"), fps[0])
+    if len(good) < 2:
+        good += sorted([e for e in tps if e not in good], key=lambda e: -e["peak_surprise"])[:2 - len(good)]
+    bad = next((e for e in fps if e["file"] == "artificialWithAnomaly/art_daily_jumpsdown.csv"),
+               max(fps, key=lambda e: e["peak_surprise"]) if fps else None)
     return {"tp": good, "fp": bad}
 
 
@@ -301,7 +306,8 @@ def s1_title(prs, d):
          size=22, color="D6DBE4")
     text(s, 0.6, 3.25, 12.1, 0.4, TEAM, size=14, color="C9D1DE")
     picture(s, FIG / "hero.png", 0.6, 4.1, w=12.1)
-    text(s, 0.6, 6.68, 12, 0.35, "machine_temperature_system_failure (NAB) · orange = labelled anomaly window · red = Sentinel alert",
+    text(s, 0.6, 6.68, 12, 0.35, "machine_temperature_system_failure (NAB) · orange = labelled anomaly window · "
+                                 "red line = Sentinel alert trigger · light red = open event",
          size=10, color="8A94A6")
     notes(s, "Sentinel reads a series one point at a time. For every point it gives a score, a label and, for "
              "every alert, the reason. Three simple detectors, one calibrated scale, one state machine.")
@@ -334,10 +340,10 @@ def s2_problem(prs, d):
     stat(s, 6.0, 5.45, 3.25, f"{zc[0]} alerts", f"plain rolling z-score, {zc[0] - zc[1]} outside the window",
          color=INK2, fill=TINT2)
     stat(s, 9.5, 5.45, 3.25, f"{sc[0]} alert{'s' if sc[0] != 1 else ''}",
-         f"Sentinel, {sc[1]} inside the window", color=BLUE)
+         f"Sentinel, {sc[1]} triggered inside the window", color=BLUE)
     footer(s, 2)
-    notes(s, "Precision per event is what an operator feels. The judging metric is event F1, so the design "
-             "goal is: catch the incident once, early enough, and do not alert on its aftermath.")
+    notes(s, "Precision per alert is what an operator feels. The judging metric is event F1, so the design "
+             "goal is: trigger once, inside the incident, early, and stay quiet on its aftermath.")
 
 
 def s3_data(prs, d):
@@ -445,7 +451,7 @@ def s5_algorithm(prs, d):
     ], size=13, spacing=6)
     # state machine
     sx, sy = 6.2, 4.3
-    states = [("NORMAL", TINT, INK), ("ANOMALOUS", RED, WHITE), ("COOLDOWN", "D9DEE7", INK)]
+    states = [("NORMAL", TINT, INK), ("EVENT", RED, WHITE), ("COOLDOWN", "D9DEE7", INK)]
     pos = [(sx, sy), (sx + 2.35, sy), (sx + 4.7, sy)]
     for (n, f, c), (x, y) in zip(states, pos):
         box_text(s, x, y, 1.75, 0.7, [[(n, {"bold": True, "size": 13, "color": c})]], fill=f,
@@ -470,7 +476,9 @@ def s5_algorithm(prs, d):
     fus = d["cfg"]["fusion"]
     text(s, sx, sy + 1.55, 6.5, 1.0, [
         [("Fusion: ", {"bold": True}), (f"U = max_k U_k − log10 3 (Bonferroni); Ū = {fus.get('smooth_mode', 'mean').replace('_', ' ')} over {fus['smooth']} points", {})],
-        [("While ANOMALOUS: ", {"bold": True}), ("learning paused. At the end: re-baseline if the level moved > 3σ or D2 fired.", {})],
+        [("Label: ", {"bold": True}), (f"ANOMALOUS on the first {ev.get('label_len') or 'every'} row(s) of an event (the trigger); "
+                                        "the span is in state/event_id and events.jsonl.", {})],
+        [("While EVENT: ", {"bold": True}), ("learning paused. At the end: re-baseline if the level moved > 3σ or D2 fired.", {})],
     ], size=12, color=INK2, spacing=4)
     footer(s, 5)
     notes(s, "All three raw scores live on different scales. Calibration turns each into a p-value against its "
@@ -482,7 +490,8 @@ def s6_experiments(prs, d):
     srch = d["search"]
     n = srch.get("pool_size", 0)
     title(s, "Staged search, logged run by run, judged on held-out categories",
-          f"{n} configs evaluated exactly on all 58 files; every run in experiments/runs.csv")
+          f"objective: trigger-based event F1; {n} configs in the final search, each run on all 58 files; "
+          "every run in experiments/runs.csv")
     picture(s, FIG / "tuning.png", 0.6, 1.65, w=6.3)
     abl = d["abl"]
     short = {"1a": "D1 residual only", "1b": "D2 change only", "1c": "D3 shape only",
@@ -490,89 +499,103 @@ def s6_experiments(prs, d):
              "4": "+ hysteresis", "5": "+ cooldown, max length", "6": "+ pause, re-baseline (full)"}
     labels = [short.get(v.split(" ", 1)[0], v) for v in abl.variant]
     colors = [BLUE if v.startswith("6") else "B8B6AE" for v in abl.variant]
-    bar_chart(s, 7.15, 1.55, 5.6, 4.0, labels, [round(v, 3) for v in abl.event_f1], colors, font_size=11,
-              max_v=max(abl.event_f1) * 1.25)
-    text(s, 7.15, 5.5, 5.6, 0.35, "Ablation: event F1, each variant with its own best θ_enter", size=11, color=MUTED)
+    bar_chart(s, 7.15, 1.55, 5.6, 4.0, labels, [round(v, 3) for v in abl.et_f1], colors, font_size=11,
+              max_v=max(abl.et_f1) * 1.25)
+    text(s, 7.15, 5.5, 5.6, 0.35, "Ablation: trigger-based event F1 (ET), each variant with its own best θ_enter",
+         size=11, color=MUTED)
     what = {"stage1": "detector params", "stage2a": "θ, hysteresis, smoothing", "stage2b": "cooldown, max length",
             "stage3a": "Fisher, peak-or-mean, learn in cooldown", "stage3b": "season ACF, log1p",
             "stage3c": "capped CUSUM", "stage3d": "shape detector off", "stage3e": "deseasonalized CUSUM"}
     lines, prev = [], None
     for st in srch["stages"]:
         key = st["stage"].split("_")[0]
-        res = (f"F1 {st['best_all_f1']:.3f}" if st["best_hash"] != prev else "no gain, kept")
+        res = (f"ET F1 {st['best_et_f1']:.3f}" if st["best_hash"] != prev else "no gain, kept")
         lines.append([(f"{key.replace('stage', 'S')} ", {"bold": True}),
                       (f"{what.get(key, '')} ({st['n_configs']}): {res}", {})])
         prev = st["best_hash"]
     fin = srch["final"]
+    nl = srch.get("nested_loco")
+    held = (f"nested LOCO (whole search re-run per held-out category) {nl['f1']:.3f}" if nl else
+            f"pool LOCO {srch['pool_loco_cv_optimistic']['f1']:.3f} (optimistic)")
     lines.append([("Final ", {"bold": True}),
-                  (f"F1 {fin['f1']:.3f} (stability rule); LOCO-CV over all {srch['pool_size']} configs "
-                   f"{srch['pool_loco_cv']['f1']:.3f}", {})])
+                  (f"ET F1 {fin['f1']:.3f} (stability rule); {held}", {})])
     text(s, 0.6, 4.85, 6.3, 2.1, lines, size=11, color=INK2, spacing=1)
     footer(s, 6)
-    notes(s, "Each stage keeps the best of the previous one. The all-files F1 is optimistic; the LOCO-CV number "
-             "is what a new category would see. The ablation shows what each part of the design adds.")
+    notes(s, "Each stage keeps the best of the previous one. The all-files F1 is optimistic; the nested LOCO number "
+             "re-runs the whole search without the held-out category and is what a new category would see.")
 
 
 def s7_evaluation(prs, d):
     s = prs.slides.add_slide(prs.slide_layouts[6])
-    title(s, "Event F1 on held-out categories, no point adjustment",
-          "Precision counts alerts, recall counts labelled windows; both summed over files")
-    # event F1 picture
-    x0, y0, w = 0.6, 2.35, 5.7
+    title(s, "Event F1 counted at the alert trigger, on held-out categories",
+          "No official evaluator was given, so we defined the metric and audited it against degenerate strategies")
+    x0, y0, w = 0.6, 2.2, 5.7
     box(s, x0, y0, w, 0.06, fill="C3C2B7", shape=MSO_SHAPE.RECTANGLE)
     box(s, x0 + 0.6, y0 - 0.55, 1.6, 0.5, fill="FBD9CB", shape=MSO_SHAPE.RECTANGLE)
     box(s, x0 + 3.6, y0 - 0.55, 1.4, 0.5, fill="FBD9CB", shape=MSO_SHAPE.RECTANGLE)
-    box(s, x0 + 1.1, y0 + 0.15, 0.7, 0.3, fill=RED, shape=MSO_SHAPE.RECTANGLE)
-    box(s, x0 + 2.6, y0 + 0.15, 0.4, 0.3, fill=RED, shape=MSO_SHAPE.RECTANGLE)
-    text(s, x0 + 0.6, y0 + 0.5, 1.8, 0.4, "hit: TP", size=11, color=INK2)
+    for xx in (x0 + 1.1, x0 + 2.75, x0 + 0.35):
+        box(s, xx, y0 + 0.12, 0.05, 0.4, fill=RED, shape=MSO_SHAPE.RECTANGLE)
+    text(s, x0 + 0.95, y0 + 0.5, 1.3, 0.4, "true alert", size=11, color=INK2)
     text(s, x0 + 2.45, y0 + 0.5, 1.2, 0.4, "false alert", size=11, color=INK2)
+    text(s, x0 - 0.05, y0 + 0.5, 1.0, 0.4, "false", size=11, color=INK2)
     text(s, x0 + 3.6, y0 + 0.5, 1.6, 0.4, "missed window", size=11, color=INK2)
-    text(s, x0, y0 + 0.95, w, 1.2, [
-        [("Precision", {"bold": True}), (" = alerts touching a window / alerts", {})],
-        [("Recall", {"bold": True}), (" = windows touched by an alert / windows", {})],
-        [("Delay", {"bold": True}), (" = first alert inside the window − window start", {})],
+    text(s, x0, y0 + 0.9, w, 1.4, [
+        [("Precision", {"bold": True}), (" = alerts triggered inside a window / alerts", {})],
+        [("Recall", {"bold": True}), (" = windows with ≥ 1 alert trigger / windows", {})],
+        [("Delay", {"bold": True}), (" = first trigger in the window − window start", {})],
     ], size=13, color=INK, spacing=4)
-    # LOCO
-    text(s, x0, 4.5, w, 0.4, "Leave-one-category-out (LOCO)", size=16, bold=True)
+    aud = d.get("audit")
+    if aud is not None:
+        def val(k, col):
+            r = aud[aud.strategy == k]
+            return float(r[col].iloc[0]) if len(r) else float("nan")
+        text(s, x0, 4.2, w, 1.0, [
+            [("Why not overlap F1? ", {"bold": True}),
+             (f"flagging every row scores {val('all_anomalous', 'E1_f1'):.2f} under an overlap event F1, "
+              f"{val('all_anomalous', 'ET_f1'):.2f} under ours; random 1% of rows: "
+              f"{val('random_1pct', 'ET_f1'):.2f}. Details: reports/metric_audit.md.", {})]], size=12, color=INK2)
+    text(s, x0, 5.15, w, 0.4, "Nested leave-one-category-out (LOCO)", size=16, bold=True)
     cats = ["Art. none", "Art. anom.", "AWS", "AdExch.", "Known", "Traffic", "Tweets"]
     for i, c in enumerate(cats):
         held = i == 4
-        box_text(s, x0 + i * 0.81, 4.95, 0.75, 0.55, [[(c, {"size": 10, "bold": held,
-                                                            "color": WHITE if held else INK2})]],
+        box_text(s, x0 + i * 0.81, 5.6, 0.75, 0.5, [[(c, {"size": 10, "bold": held,
+                                                           "color": WHITE if held else INK2})]],
                  fill=BLUE if held else TINT2, align=PP_ALIGN.CENTER, margin=0.03)
-    text(s, x0, 5.6, w, 1.2, "Pick the config on 6 categories, score it on the 7th; repeat 7 times. "
-                             "Each file is scored once while held out. One global config, no per-file tuning.",
-         size=12, color=INK2)
+    text(s, x0, 6.15, w, 0.8, "The whole staged search runs on 6 categories; its pick is scored on the 7th; "
+                              "7 times. One global config, no per-file tuning.", size=12, color=INK2)
     pc = d["m"]["per_category"]
-    cats2 = [c for c in pc if pc[c]["n_windows"]]
-    cats2.sort(key=lambda c: -pc[c]["f1"])
+    cats2 = [c for c in pc if pc[c]["trigger"]["n_windows"]]
+    cats2.sort(key=lambda c: -pc[c]["trigger"]["f1"])
     short = {"artificialWithAnomaly": "Artificial", "realAWSCloudwatch": "AWS", "realAdExchange": "Ad exchange",
              "realKnownCause": "Known cause", "realTraffic": "Traffic", "realTweets": "Tweets"}
-    labels = [f"{short.get(c, c)} ({pc[c]['tp_gt']}/{pc[c]['n_windows']})" for c in cats2]
-    bar_chart(s, 6.9, 1.5, 5.85, 4.3, labels, [round(pc[c]["f1"], 3) for c in cats2], [BLUE] * len(cats2),
-              font_size=12, max_v=1.15)
-    fa = pc.get("artificialNoAnomaly", {})
-    text(s, 6.9, 5.8, 5.85, 0.9, f"Sentinel event F1 per category (windows found / windows). "
-                                  f"On the 5 no-anomaly files it raised {fa.get('fp', 0)} false alert{'' if fa.get('fp', 0) == 1 else 's'}.",
-         size=12, color=INK2)
+    labels = [f"{short.get(c, c)} ({pc[c]['trigger']['tp']}/{pc[c]['trigger']['n_windows']})" for c in cats2]
+    bar_chart(s, 6.9, 1.5, 5.85, 4.3, labels, [round(pc[c]["trigger"]["f1"], 3) for c in cats2],
+              [BLUE] * len(cats2), font_size=12, max_v=1.15)
+    fa = pc.get("artificialNoAnomaly", {}).get("trigger", {})
+    nfa = fa.get("fp", 0)
+    text(s, 6.9, 5.8, 5.85, 0.9, f"Sentinel trigger-based event F1 per category (windows found / windows), "
+                                  f"final config on all files. On the 5 no-anomaly files: {nfa} false "
+                                  f"alert{'' if nfa == 1 else 's'}.", size=12, color=INK2)
     footer(s, 7)
-    notes(s, "We never use point adjustment, which inflates scores. A long alert that covers a window counts "
-             "once; an alert far from any window is a false alert, however short.")
+    notes(s, "No point adjustment. An alert is judged where it starts: one that starts before the window and "
+             "runs into it is a false alert and the window counts as missed, exactly as NAB scores it.")
 
 
 def s8_results(prs, d):
     s = prs.slides.add_slide(prs.slide_layouts[6])
     m, srch, base, rt = d["m"]["overall"], d["search"], d["base"], d["rt"]
-    cv = srch["pool_loco_cv"]
+    t = m["trigger"]
+    nl = srch.get("nested_loco") or srch.get("pool_loco_cv_optimistic")
     ci = d["m"]["bootstrap"]["f1_ci95"]
-    title(s, "Sentinel leads every baseline, even ones given our calibration")
-    stat(s, 0.6, 1.3, 2.85, f"{m['f1']:.2f}", f"event F1, all files (95% CI {ci[0]:.2f}–{ci[1]:.2f})", color=BLUE)
-    stat(s, 3.6, 1.3, 2.85, f"{cv['f1']:.2f}", "event F1, held-out categories (LOCO)", color=BLUE)
-    stat(s, 6.6, 1.3, 2.85, f"{m['precision']:.2f} / {m['recall']:.2f}", f"precision / recall ({m['tp_gt']}/{m['n_windows']} windows)")
-    stat(s, 9.6, 1.3, 3.1, f"{rt['us_per_point']['mean']:.0f} µs", "per point, one laptop CPU core")
+    title(s, "Results: Sentinel vs baselines on the same metric and protocol")
+    stat(s, 0.6, 1.3, 2.85, f"{t['f1']:.2f}", f"ET F1, all files (95% CI {ci[0]:.2f}–{ci[1]:.2f})", color=BLUE)
+    stat(s, 3.6, 1.3, 2.85, f"{nl['f1']:.2f}", "ET F1, held-out categories (nested LOCO)", color=BLUE)
+    stat(s, 6.6, 1.3, 2.85, f"{t['precision']:.2f} / {t['recall']:.2f}",
+         f"precision / recall ({t['tp']}/{t['n_windows']} windows, {t['fp']} false)")
+    stat(s, 9.6, 1.3, 3.1, f"{rt['us_per_point']['mean']:.0f} µs", "per point, one CPU core")
     keep = base[base.detector != "null"].copy()
-    best = keep[keep.detector != "sentinel"].sort_values("event_f1", ascending=False).groupby("detector").head(1)
-    rows = [["Method", "Event F1", "LOCO-CV F1", "Precision", "Recall", "False alerts", "NAB*"]]
+    best = keep[keep.detector != "sentinel"].sort_values("et_f1", ascending=False).groupby("detector").head(1)
+    rows = [["Method", "ET F1", "Held-out", "Precision", "Recall", "False alerts", "E1 F1", "NAB"]]
     sen = keep[keep.detector == "sentinel"].iloc[0]
     nice = {"rolling_z": "Rolling z-score", "iforest": "Isolation Forest", "lof": "LOF", "ocsvm": "One-Class SVM",
             "random": "Random"}
@@ -580,18 +603,20 @@ def s8_results(prs, d):
 
     def fmt(v):
         return "–" if pd.isna(v) else f"{v:.3f}"
-    rows.append(["Sentinel", fmt(sen.event_f1), fmt(sen.cv_event_f1), fmt(sen.precision), fmt(sen.recall),
-                 int(sen.fp_events), f"{sen.nab_standard_onsets:.1f}"])
-    for _, r in best.sort_values("event_f1", ascending=False).iterrows():
-        rows.append([f"{nice.get(r.detector, r.detector)} ({vnice.get(r.variant, r.variant)})", fmt(r.event_f1),
-                     fmt(r.cv_event_f1), fmt(r.precision), fmt(r.recall), int(r.fp_events),
-                     f"{r.nab_standard_onsets:.1f}"])
-    table(s, 0.6, 2.95, 12.1, rows, [4.6, 1.15, 1.35, 1.2, 1.1, 1.3, 1.4], size=12, row_h=0.4, highlight_rows=(1,))
+    rows.append(["Sentinel", fmt(sen.et_f1), fmt(sen.cv_et_f1), fmt(sen.et_precision), fmt(sen.et_recall),
+                 int(sen.false_alerts), fmt(sen.e1_f1), f"{sen.nab_official:.1f}"])
+    for _, r in best.sort_values("et_f1", ascending=False).iterrows():
+        rows.append([f"{nice.get(r.detector, r.detector)} ({vnice.get(r.variant, r.variant)})", fmt(r.et_f1),
+                     fmt(r.cv_et_f1), fmt(r.et_precision), fmt(r.et_recall), int(r.false_alerts),
+                     fmt(r.e1_f1), f"{r.nab_official:.1f}"])
+    table(s, 0.6, 2.95, 12.1, rows, [4.1, 1.0, 1.1, 1.15, 1.0, 1.35, 1.0, 1.4], size=12, row_h=0.4,
+          highlight_rows=(1,))
     text(s, 0.6, 2.95 + 0.4 * len(rows) + 0.1, 12.1, 0.9,
-         "Best variant of each baseline shown (full table: results/baselines_comparison.csv). LOCO-CV: threshold chosen "
-         "on 6 categories, scored on the 7th. *NAB score at our operating point (alert onsets as detections). NAB's "
-         "scoreboard (ARTime 74.9, HTM ~70, CAD OSE 69.9) tunes a threshold per detector and is a different metric.",
-         size=11, color=MUTED)
+         "Best variant of each baseline (full table: results/baselines_comparison.csv). Held-out: Sentinel = nested "
+         "LOCO; baselines = θ chosen on 6 categories. NAB = NAB standard score with every ANOMALOUS row as a "
+         "detection, at our operating point; NAB's scoreboard (ARTime 74.9, HTM ~70, CAD OSE 69.9) tunes one "
+         "threshold per detector and gives each file's min/max in advance, so it is not comparable.",
+         size=10.5, color=MUTED)
     footer(s, 8)
     notes(s, "The fairest comparison is the row where a baseline gets our calibration and event logic with its "
              "threshold chosen the same way: the detectors themselves still matter.")
@@ -642,14 +667,14 @@ def s10_end(prs, d):
         "Operator feedback to adapt θ per service",
         "Compare with time-series foundation models",
     ], size=14, color="D6DBE4", spacing=6)
-    m = d["m"]["overall"]
-    cv = d["search"]["pool_loco_cv"]
+    m = d["m"]["overall"]["trigger"]
+    cv = d["search"].get("nested_loco") or d["search"]["pool_loco_cv_optimistic"]
     text(s, 7.0, 4.15, 5.7, 0.45, "Conclusion", size=18, bold=True, color="8FB3E8")
     text(s, 7.0, 4.65, 5.7, 2.2, [
-        f"Three simple, causal detectors + calibration + event logic: event F1 {m['f1']:.2f} on NAB "
-        f"({cv['f1']:.2f} on held-out categories).",
-        "One alert per incident, each with a reason; tens of microseconds per point on a laptop.",
-        "Every number is reproducible from one command per step.",
+        f"Three simple, causal detectors + calibration + event logic: trigger-based event F1 {m['f1']:.2f} "
+        f"on NAB ({cv['f1']:.2f} on held-out categories).",
+        "One alert per incident, each with a reason; tens of microseconds per point.",
+        "Metric audited; every number reproducible from one command per step.",
     ], size=14, color=WHITE, spacing=8)
     footer(s, 10, dark=True)
     notes(s, "Be honest about NAB: labels are imperfect, so some false positives are real events and some "

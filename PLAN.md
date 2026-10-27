@@ -1,9 +1,9 @@
 # SENTINEL — Master Plan (Utkrishta 2026, Challenge 2)
 
-**Plan version:** v1.1 (v1.0 text below unchanged; changes listed in Section 20)
+**Plan version:** v2.0 (v1.0 text below unchanged; v1.1 changes in Section 20, v2.0 changes in Section 21)
 **Created:** 2026-10-26 19:19 IST (UTC+05:30)
 **Owner:** Kommana Srinivasa Rao (K S)
-**Status:** v1.0 planning complete; implementation in progress (see `LOGBOOK.md`).
+**Status:** implemented; audited and migrated to the supplied NAB archive on 2026-10-27 (Section 21, `reports/final_audit_report.md`).
 
 > **For any LLM or person picking this up:** read this file top to bottom once, then read `LOGBOOK.md` to see what has already been done. Work phase by phase (Section 14). After every atomic change, add an entry to `LOGBOOK.md` (rules in Section 17). Never break the rules in Section 2.
 
@@ -805,3 +805,24 @@ All changes are also logged in `LOGBOOK.md` (entry IDs in brackets). Section num
 | 7.3 | plain CUSUM | Two extra options tested by the search and rejected: capped CUSUM (−0.11 F1), deseasonalized D2 input (−0.02 F1). Both stay available, off by default. | [L-0022], [L-0027] |
 | 5.5 / 13 | notebooks for EDA, walkthrough, results | Replaced by `scripts/make_figures.py` (one command regenerates every figure, incl. `figures/walkthrough.png`). | [L-0018] |
 | 14 T9.2 | demo video | Not recorded (needs a person at the screen). Deep links (`?file=…&run=1`) make a 2-minute recording easy. | [L-0028] |
+
+---
+
+## 21. Plan change log (v1.1 → v2.0, audit of 2026-10-27)
+
+Where v2.0 differs from the sections above, Section 21 wins. Every row has a LOGBOOK entry.
+
+| Section | v1.1 | v2.0 | Why |
+|---|---|---|---|
+| 3 A1, 5.1 | data from a sparse `git clone` of NAB `master` | data from the supplied archive `NAB-master.zip` (commit `ea702d75`, same as before), installed by `scripts/download_nab.py --zip …` and verified file by file against `configs/nab_manifest.json`; without `--zip` the archive of the pinned commit is downloaded | data source of record, moving branch removed [L-0040] |
+| 3 A5, 4.1 | primary metric E1 (overlap event F1) | primary metric **ET, trigger-based event F1** (`metrics/trigger.py`); E1 kept as secondary | E1 scores 0.945 for "flag every row"; no official evaluator exists; ET follows "trigger timestamp" wording and NAB's own rule [L-0042], `reports/metric_audit.md` |
+| 4.2 | NAB score with alert onsets | NAB reported in both conventions; "official" = every ANOMALOUS row is a detection (NAB's convention) | v1's 40.7 was −831.6 under NAB's convention [L-0042] |
+| 4.3 | delay = first ANOMALOUS row inside the window | delay = first alert *trigger* inside the window (E1-style delay still reported) | an alert that started before the window gave delay 0 |
+| 7.7, 9.1 | every row of an event labelled ANOMALOUS; state `ANOMALOUS` | `events.label_len` (default 1): only the trigger row is ANOMALOUS; state `EVENT` marks the open incident; event span in `event_id`/`events.jsonl` | honest binary label under per-row metrics; detection unchanged [L-0043] |
+| 7.2 evidence | `level` = rolling median of deseasonalized values | evidence reports centred `level` and `seasonal_offset` (sum unchanged) | level/offset split drifted (level −247 for values ≈ 45) [L-0043] |
+| 10.2, 11.2 | selection on E1; "LOCO over the pool" reported as held-out | selection on ET; **nested LOCO** (whole staged search re-run per held-out category) is the held-out number; pool LOCO reported as optimistic | the pool was grown by stages that saw every category |
+| 11.1 | cooldown {100, 200, 400}, max_len {200, 400, 800} | cooldown {100, 200, 400, 800}, max_len {50, 200, 800} | short alerts + rest period (IDEAS #4) under the new objective |
+| 11.2 cache | key = manual version + config hash | key = version + data fingerprint + hash of the source files that change a row + config hash | stale cache could not be detected before |
+| 14 T3.5 | prefix-truncation causality test | + future-perturbation tests, label/window independence, prediction-time convention, calibration frozen during events, adversarial metric tests | stronger leakage evidence [L-0044] |
+| 13 | `screenshot_demo.py` needs `websockets` (not in requirements) | Playwright-based, optional | missing dependency |
+

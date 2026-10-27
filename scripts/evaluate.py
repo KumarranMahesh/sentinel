@@ -3,8 +3,8 @@
   python scripts/evaluate.py --pred predictions/ --out results/
 
 Reads <pred>/per_file/**.csv (column label_int), compares with NAB windows, writes
-metrics_summary.json (overall, per category, E1/E3/NAB, delays, bootstrap CI) and
-per_file_metrics.csv.
+metrics_summary.json (overall, per category; ET, E1, composite, point-wise, NAB both
+conventions; delays; bootstrap CIs) and per_file_metrics.csv. Labels are read here only.
 """
 import argparse
 import json
@@ -40,16 +40,19 @@ def main():
     overall = summarize(rows)
     summary = {
         "prediction_dir": str(args.pred),
-        "definition": "E1 event F1, micro-averaged over files (PLAN.md 4.1)",
+        "definition": ("primary: overall.trigger = trigger-based event F1 (ET); top-level f1/precision/"
+                       "recall = overlap event F1 (E1, secondary, gameable by long alerts); "
+                       "all micro-averaged over files. See reports/metric_audit.md."),
         "overall": overall,
-        "bootstrap": bootstrap_f1(rows),
+        "bootstrap": bootstrap_f1(rows, metric="et"),
+        "bootstrap_e1": bootstrap_f1(rows, metric="e1"),
         "per_category": summarize_by_category(rows),
     }
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "metrics_summary.json").write_text(json.dumps(summary, indent=2))
     per_file_table(rows).to_csv(out / "per_file_metrics.csv", index=False)
-    print(short(overall), "CI95", [round(x, 3) for x in summary["bootstrap"]["f1_ci95"]])
+    print(short(overall), "ET CI95", [round(x, 3) for x in summary["bootstrap"]["f1_ci95"]])
 
 
 if __name__ == "__main__":

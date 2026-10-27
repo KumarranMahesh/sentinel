@@ -1,0 +1,48 @@
+# Chosen by scripts/search.py (staged grid + LOCO stability rule).
+# config hash b5bef53343; changes vs default: {"season.acf_min": 0.5, "change.k": 1.0, "shape.m": 16, "fusion.smooth": 5, "events.theta_enter": 3.5, "events.exit_offset": 0.5, "events.cooldown": 100, "events.max_len": 800}
+probation:
+  percent: 0.15
+  default_len: 750
+season:
+  acf_min: 0.5
+transform:
+  log1p: false
+  skew_min: 2.0
+residual:
+  enabled: true
+  window: 256
+  ew_mad_rate: 0.02
+  season_beta: 0.1
+  season_min_count: 3
+change:
+  enabled: true
+  slow_rate: 0.005
+  k: 1.0
+  k_v: 0.5
+  h: 5.0
+  rebaseline_scale: false
+shape:
+  enabled: true
+  m: 16
+  history: 2000
+calibration:
+  buffer: 2000
+  tail_q: 0.95
+  min_exceed: 10
+  min_tail_n: 100
+  recalc_every: 50
+  learn_in_cooldown: false
+fusion:
+  method: max_bonferroni
+  smooth: 5
+  smooth_mode: mean
+events:
+  enabled: true
+  theta_enter: 3.5
+  exit_offset: 0.5
+  cooldown: 100
+  max_len: 800
+  pause: true
+  rebaseline: true
+  rebaseline_r: 50
+  rebaseline_sigma: 3.0
