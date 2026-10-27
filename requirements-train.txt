@@ -1,0 +1,5 @@
+# Only for training the optional neural forecaster (scripts/train_neural.py).
+# The detector itself runs on NumPy and does not need PyTorch.
+# Install PyTorch from the CUDA index that matches your driver (docs/GPU_TRAINING.md), e.g.
+#   pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cu130
+torch==2.14.1
