@@ -831,3 +831,16 @@ Where v2.0 differs from the sections above, Section 21 wins. Every row has a LOG
 | 3 A4 | probation length given to the detector | unchanged, but its effect is measured (`scripts/probation_sensitivity.py`: fixed 750 → ET 0.474 vs 0.479) | NAB's rule needs the file length [L-0046] |
 | 11.2 held-out | nested LOCO, 7 folds | nested LOCO partial (3 of 7, stopped for cost) + θ-LOCO for Sentinel and every calibrated baseline (same protocol) | ~12–30 min per fold on 2 cores; threshold-only selection proved stable (θ = 3.5 in every fold) [L-0047] |
 | 8 baselines | E1 table | ET table; Sentinel ∪ LOF union and agreement tested, not adopted (not significant, 12× cost) | [L-0047] |
+
+## 22. Plan change log (v2.0 → v3.0, 2026-10-27 afternoon)
+
+Where v3.0 differs from the sections above, Section 22 wins. Every row has a LOGBOOK entry.
+
+| Section | v2.0 | v3.0 | Why |
+|---|---|---|---|
+| 9.1 `anomaly_score` | 1 − 10^−Ū on every row | `output.score: alert`: [0.5, 1] on ANOMALOUS rows, [0, 0.5) elsewhere (`surprise` unchanged) | a threshold sweep over the score column (NAB's protocol) scored 0.0; now 38.8 = the labels [L-0049] |
+| 12 runtime | Python reference only | + compiled engine `src/sentinel/fast.py` (Numba), bit-identical to the reference for D1 + D2 (+ D7); `--engine auto` | runtime is 15% of judging [L-0050, L-0053] |
+| 10 validation | θ-LOCO + partial nested LOCO | + within-file time split (θ chosen on early halves, scored on late halves) + paired bootstrap; adoption rule fixed in advance | hidden test windows are later windows of NAB files; one protocol alone is noisy [L-0048, L-0051] |
+| 7 detectors | D1, D2, D3 (off), D4 LOF (off) | + D5 shift (KS), D6 joint (Hotelling T²), D7 subspace (SSA), D8 forecast (AR), D9 neural (MLP); all optional, all causal (tests) | ideas list of 2026-10-27 [L-0052, L-0054] |
+| 11 search | staged grid | candidate families with θ ∈ {3.5 … 5.5}; tie-break rule fixed before the last results | first-round winners sat at the grid edge [L-0055] |
+| 15 deliverables | — | `docs/GPU_TRAINING.md`: exact Windows + CUDA steps to reproduce and retrain on the team's GPU | team request |

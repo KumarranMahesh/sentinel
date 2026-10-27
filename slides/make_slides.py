@@ -747,16 +747,24 @@ def s10_end(prs, d):
         "Multivariate streams (shared context across metrics)",
         "Learn more seasonal periods online, not only day/week",
         "Operator feedback to adapt θ per service",
-        "Compare with time-series foundation models",
+        "Retrain the neural channel on the GPU with more history (docs/GPU_TRAINING.md)",
     ], size=14, color="D6DBE4", spacing=6)
     m = d["m"]["overall"]["trigger"]
     hv, hl = held_out(d["search"])
+    if d.get("val"):
+        c = d["val"]["candidate"]
+        hv, hl = c["theta_loco"]["f1"], (f"with θ chosen on held-out categories, "
+                                          f"{c['time_split']['late']['f1']:.2f} on the late halves")
+    dets = " + ".join(DET_INFO[n][0].split(" ", 1)[1].lower() for n in enabled(d["cfg"]))
+    fe = d["rt"].get("fast_engine", {})
+    speed = (f"{fe['us_per_point_mean']:.0f} µs per point compiled" if fe.get("available")
+             else "tens of microseconds per point")
     text(s, 7.0, 4.15, 5.7, 0.45, "Conclusion", size=18, bold=True, color="8FB3E8")
     text(s, 7.0, 4.65, 5.7, 2.2, [
-        f"Two causal detectors (residual + CUSUM) + calibration + event logic: trigger-based event F1 {m['f1']:.2f} "
-        f"on NAB, all files; {hv:.2f} {hl.replace('ET F1, ', '')}.",
-        "One alert per incident, each with a reason; tens of microseconds per point.",
-        "Metric audited; every number reproducible from one command per step.",
+        f"{len(enabled(d['cfg']))} causal detectors ({dets}) + calibration + event logic: trigger-based "
+        f"event F1 {m['f1']:.2f} on NAB, all files; {hv:.2f} {hl}.",
+        f"One alert per incident, each with a reason; {speed}.",
+        "Metric audited; every change adopted only under a fixed held-out rule.",
     ], size=14, color=WHITE, spacing=8)
     footer(s, 10, dark=True)
     notes(s, "Be honest about NAB: labels are imperfect, so some false positives are real events and some "
