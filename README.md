@@ -25,15 +25,15 @@ windows is a false alert ([reports/metric_audit.md](reports/metric_audit.md)).
 
 | Metric | v3 | v2 | Note |
 |---|---|---|---|
-| ET F1, all files (in-sample) | **0.541** (CI {V3_CI}) | 0.479 | ~10 candidate families were compared on these labels: optimistic |
+| ET F1, all files (in-sample) | **0.541** (CI 0.450–0.641) | 0.479 | ~10 candidate families were compared on these labels: optimistic |
 | ET F1, held-out categories (θ-LOCO) | **0.482** | 0.479 | θ chosen on 6 categories, scored on the 7th |
 | ET F1, late half of every file | **0.571** | 0.527 | θ chosen on the early halves, scored on the late halves |
 | Precision / recall | 0.615 / 0.483 | 0.515 / 0.448 | 56 vs 52 of 116 windows; 35 vs 49 false alerts |
-| NAB score (standard profile) | {V3_NAB} | 38.8 | NAB's own rule, checked against its `sweeper.py` |
-| Detection delay (median, fraction of window) | {V3_DELAY} | 0.50 | ET does not reward earliness, so delay is reported separately |
+| NAB score (standard profile) | **42.0** | 38.8 | NAB's own rule, checked against its `sweeper.py` |
+| Detection delay (median, fraction of window) | 0.50 (trigger median 2 points after NAB's labelled point) | 0.50 | ET does not reward earliness, so delay is reported separately |
 | Runtime per point | **{FAST_US} µs** compiled · {REF_US} µs streaming API | 23 µs (audit machine) | {MACHINE} |
 
-**v3 vs v2, same files, metric and scorer:** paired file bootstrap {V3_BOOT}. The clear gain is
+**v3 vs v2, same files, metric and scorer:** paired file bootstrap +0.062, 95% CI −0.001…+0.129, P(≤ 0) = 0.03 (in-sample; not significant at 95%). The clear gain is
 on the late halves (false alerts there 24 → 13); on held-out categories v3 and v2 are tied.
 
 ### How v3 was chosen
@@ -404,10 +404,10 @@ numbers. Our best defensible result is ET F1 0.479 all files / 0.381 partial nes
   With 116 windows, ET F1 has a 95% CI of about ±0.09; differences below ~0.05 are not meaningful.
   The v2 nested LOCO (3 of 7 categories) was not re-run for v3.
 - **Probation needs the file length** (NAB's rule); effect measured in
-  `results/probation_sensitivity.json` ({PROB_SENS}).
+  `results/probation_sensitivity.json` (detector told 750 points on every file: ET 0.530 vs 0.541).
 - **NAB labels are imperfect** (Wu & Keogh): some false alerts are clear unlabelled events and
   some windows show no visible change.
-- **Misses dominate** ({V3_MISSES} of 116 windows), see `results/error_analysis.json`.
+- **Misses dominate** (60 of 116 windows), see `results/error_analysis.json`.
 - **The neural channel did not help** on NAB (0.469 vs 0.479) and is off; GPU retraining
   will change its weights slightly, not this conclusion.
 - **Published NAB detectors** (CAD OSE 0.676, HTM 0.527 under ET) score higher or similar, but

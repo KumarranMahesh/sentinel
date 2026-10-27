@@ -315,3 +315,53 @@ Every other number: the command list in `README.md` ("Reproduce every number and
   beat 0.71.
 - The Sentinel + LOF union (0.515) is documented as a possible next step that needs more
   validation and costs about 12× per point.
+
+## 15. v3 addendum (2026-10-27, evening)
+
+Requested by the team after the audit: implement the improvement ideas in order (score column,
+runtime, validation protocol, new detectors, a neural channel with GPU steps). Every step is in
+`LOGBOOK.md` L-0048…L-0057 and `PLAN.md` Section 22. Same machine as Sections 2–14.
+
+**Starter pack / schema.** The problem statement's dataset row mentions a "starter pack with
+hidden test windows". None was supplied, and none was found in the team's mail or Drive; the
+deliverables list is the only "schema". NAB windows and ET remain the target.
+
+**What changed**
+
+| Change | Effect | Evidence |
+|---|---|---|
+| `output.score: alert` | `anomaly_score` ≥ 0.5 exactly on ANOMALOUS rows; NAB's own threshold sweep on the column 0.0 → label-based score | `results/nab_crosscheck.json` |
+| Compiled engine `fast.py` | same output as `pipeline.py` on all 58 files (labels, states, events identical; surprise ≤ 6e−12) | `tests/test_fast.py`; `results/runtime.json` → `fast_engine` |
+| Validation harness | θ-LOCO + within-file time split + paired bootstrap; adoption and tie-break rules written before the runs | `src/sentinel/validation.py`, L-0048, L-0055 |
+| D4–D9 optional detectors | all causal (future-perturbation tests) | `tests/test_leakage.py` |
+| Final config | D1 + D2 + D7 subspace + D4 LOF, θ_enter 5.0 | `configs/final.yaml`, L-0056 |
+
+**v3 vs v2** (`results/metrics_summary.json`, `results/validation/final.json`, `results/compare_v2_vs_v3.json`)
+
+| | v2 | v3 |
+|---|---|---|
+| ET F1, all files (in-sample) | 0.479 | 0.541 (CI 0.450–0.641) |
+| ET F1, held-out categories (θ-LOCO) | 0.479 | 0.482 |
+| ET F1, late halves (θ from early halves) | 0.527 | 0.571 |
+| Windows found / false alerts | 52 / 49 | 56 / 35 |
+| NAB standard score | 38.8 | 42.0 |
+| Paired bootstrap v3 − v2 | | +0.062, CI −0.001…+0.129 |
+| Probation look-ahead removed (750 for all files) | 0.474 | 0.530 |
+
+Per category (windows found / windows, false alerts), v2 → v3: Artificial 4/6, 0 → 4/6, 1;
+AWS 13/30, 9 → 15/30, 5; Ad exchange 4/14, 2 → 5/14, 3; Known cause 7/19, 12 → 9/19, 14;
+Traffic 3/14, 2 → 4/14, 0; Tweets 21/33, 23 → 19/33, 12; no-anomaly files 1 → 0 false alerts.
+
+**Rejected** (`results/validation/summary.csv`): D5 KS shift, D6 Hotelling T² alone, D4 LOF
+alone, D7 with its lag tuned, D8 AR forecast, D9 neural forecaster (0.469: worse than v2), the
+Anscombe count transform (bootstrap −0.090, CI excludes 0).
+
+**How to read it.** The late-half gain is the clearest (false alerts there 24 → 13). On held-out
+categories v3 and v2 are tied (0.482 vs 0.479); the D7-only family is better there (0.509) but
+lost the pre-set tie-break. About ten families were compared on the same labels, so the chosen
+one is optimistic; the v2 nested LOCO was not re-run for v3. The bootstrap interval touches 0.
+Claim fewer false alerts at equal or better recall, not a proven large improvement.
+
+**Not done.** No demo video; team name not set; GPU training not run here (no GPU in the
+container; the shipped neural weights were trained on CPU, and `docs/GPU_TRAINING.md` gives the
+exact steps for the team's machine).
