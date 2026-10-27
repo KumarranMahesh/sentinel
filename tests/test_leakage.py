@@ -130,3 +130,18 @@ def test_optional_detectors_future_perturbation(det, rng):
     for t in (900, 2510):
         for xp in _perturbations(x, t, rng)[:3]:
             _assert_same_until(base, run_sentinel(_with_values(s, xp), cfg), t)
+
+
+def test_neural_detector_future_perturbation(rng):
+    """D9 (NumPy MLP forecaster) is causal too."""
+    from sentinel.config import ROOT
+    if not (ROOT / "models" / "neural_all.npz").exists():
+        pytest.skip("no trained model")
+    x = 10 + np.sin(np.arange(3000) / 40) + 0.3 * rng.standard_normal(3000)
+    x[2000:2030] += 4
+    s = make_series(x)
+    cfg = load_config(overrides={"neural": {"enabled": True, "weights": "models/neural_all.npz"}})
+    base = run_sentinel(s, cfg)
+    assert "neural" in base["detector_names"]
+    for xp in _perturbations(x, 2010, rng)[:2]:
+        _assert_same_until(base, run_sentinel(_with_values(s, xp), cfg), 2010)
