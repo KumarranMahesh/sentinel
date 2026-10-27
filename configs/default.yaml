@@ -52,6 +52,7 @@ events:
   exit_offset: 1.0       # theta_exit = theta_enter - exit_offset
   cooldown: 200          # c
   max_len: 400           # L_max
+  label_len: 1           # rows labelled ANOMALOUS per event, from its trigger row (null = whole event)
   pause: true            # freeze learning while ANOMALOUS
   rebaseline: true
   rebaseline_r: 50

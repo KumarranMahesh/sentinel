@@ -88,11 +88,18 @@ class ResidualDetector(Detector):
         self.level.refill(self.recent_d)
 
     def evidence(self):
-        x, lvl, pred, r, sigma, b, _, _ = self._last
+        x, lvl, pred, r, sigma, b, s, _ = self._last
+        # level + offset is identified, the split between them is not: a constant can drift
+        # between the rolling level and the bucket offsets (seen: level -247 for values ~45).
+        # Report them centred (offsets of the learned buckets average to 0); the prediction
+        # and every score are unchanged.
+        learned = self.count >= self.min_count
+        c = float(self.profile[learned].mean()) if learned.any() else 0.0
         return {
             "observed": float(x),
             "expected": float(pred),
-            "level": float(lvl),
+            "level": float(lvl + c),
+            "seasonal_offset": float(s - c) if b >= 0 else 0.0,
             "residual": float(r),
             "z": float(r / sigma),
             "season_mode": self.season_mode,

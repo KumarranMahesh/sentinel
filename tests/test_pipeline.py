@@ -15,7 +15,7 @@ def test_update_accepts_common_timestamp_types():
     for i in range(120):
         ts = [t0 + np.timedelta64(5 * i, "m"), str(t0 + np.timedelta64(5 * i, "m"))][i % 2]
         r = det.update(ts, 1.0 + 0.01 * (i % 7))
-    assert r.state in ("NORMAL", "ANOMALOUS", "COOLDOWN")
+    assert r.state in ("NORMAL", "EVENT", "COOLDOWN")
 
 
 def test_spike_flagged_with_evidence(rng):
@@ -41,3 +41,15 @@ def test_deterministic(rng):
     s = make_series(x)
     a, b = run_sentinel(s, load_config()), run_sentinel(s, load_config())
     assert np.array_equal(a["surprise"], b["surprise"])
+
+
+def test_residual_evidence_level_is_centred(rng):
+    """Level + seasonal offset is what is identified; evidence reports the centred split."""
+    t = np.arange(12000)
+    x = 50 + 10 * np.sin(2 * np.pi * t / 288) + rng.standard_normal(len(t))
+    x[9000] += 60
+    res = run_sentinel(make_series(x), load_config())
+    ev = next(e for e in res["events"] if e["start_index"] == 9000)["evidence"]["residual"]
+    assert ev["season_mode"] == "day"
+    assert 35 < ev["level"] < 65                        # near the series mean, not drifted
+    assert abs(ev["level"] + ev["seasonal_offset"] - ev["expected"]) < 1e-3

@@ -1,4 +1,7 @@
-# Staged search (PLAN.md Section 11). Each stage is a grid over dotted config keys;
+# Staged search (PLAN.md Section 11). Objective since v2: micro trigger-based event F1 (ET).
+# v2 change: stage2b adds short events (max_len 50) and a long rest period (cooldown 800),
+# i.e. the "short alerts + rest period" idea (research/IDEAS.md #4).
+# Each stage is a grid over dotted config keys;
 # keys not listed keep the best value from earlier stages (or the default).
 # Deviations from PLAN v1.0 (logged in LOGBOOK / PLAN Section 20):
 #  - theta_enter is searched in every stage because the default 3.0 is far from the best
@@ -21,8 +24,8 @@ stages:
       fusion.smooth: [1, 3, 5]
   - name: stage2b_cooldown_maxlen
     grid:
-      events.cooldown: [100, 200, 400]
-      events.max_len: [200, 400, 800]
+      events.cooldown: [100, 200, 400, 800]
+      events.max_len: [50, 200, 800]
       events.theta_enter: [-0.5, 0.0, 0.5]
     relative: [events.theta_enter]
   - name: stage3a_fusion_calibration

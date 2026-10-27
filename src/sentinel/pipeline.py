@@ -24,13 +24,16 @@ from .preprocess import detect_season
 from .robust import robust_stats, scale_floor
 
 
+EVENT = "EVENT"                   # output state while an incident (event) is open
+
+
 class PointResult(NamedTuple):
     anomaly_score: float          # 1 - 10^(-surprise), in [0, 1]
     surprise: float               # smoothed fused surprise U-bar
-    label: str                    # NORMAL / ANOMALOUS
+    label: str                    # NORMAL / ANOMALOUS (alert rows: first label_len rows of an event)
     top_detector: str             # residual / change / shape / none
-    event_id: Optional[int]
-    state: str                    # PROBATION / NORMAL / ANOMALOUS / COOLDOWN
+    event_id: Optional[int]       # set on every row of an open event
+    state: str                    # PROBATION / NORMAL / EVENT / COOLDOWN
     detector_surprise: tuple      # U_k per enabled detector
 
 
@@ -59,6 +62,11 @@ class StreamingSentinel:
         self.names = [n for n in ORDER if c[n]["enabled"]]
         ev = c["events"]
         self.event_logic = ev["enabled"]
+        # label_len: how many rows of each event are labelled ANOMALOUS, starting at the
+        # trigger row (None = every row of the event, the v1 behaviour). The event itself
+        # (pause, re-baseline, cooldown, evidence) is unchanged; see reports/metric_audit.md.
+        ll = ev.get("label_len")
+        self.label_len = None if ll is None else max(int(ll), 1)
         if self.event_logic:
             self.machine = EventMachine(ev["theta_enter"], ev["theta_enter"] - ev["exit_offset"],
                                         ev["cooldown"], ev["max_len"])
@@ -195,12 +203,15 @@ class StreamingSentinel:
                     if r is not None:
                         cal.add(r)
 
+        in_event = state == ANOMALOUS
+        alert = in_event and (self.label_len is None or not self.event_logic
+                              or self.machine.length <= self.label_len)
         self.last = PointResult(
             1.0 - 10.0 ** (-ubar), ubar,
-            ANOMALOUS if state == ANOMALOUS else NORMAL,
+            ANOMALOUS if alert else NORMAL,
             self.names[k] if u > 0 else "none",
-            self.event_id if state == ANOMALOUS else None,
-            state, tuple(us))
+            self.event_id if in_event else None,
+            EVENT if in_event else state, tuple(us))
         return self.last
 
     def _open_event(self, i, sec, us, k, gap, raw_x):
@@ -212,6 +223,7 @@ class StreamingSentinel:
                 e["observed"] = raw_x
                 for key in ("expected", "level"):
                     e[key] = math.expm1(e[key])
+                e["seasonal_offset"] = e["expected"] - e["level"]
                 e["residual"] = raw_x - e["expected"]
             if "change" in evid:
                 e = evid["change"]
