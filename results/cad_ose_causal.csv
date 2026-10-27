@@ -1,0 +1,4 @@
+range,nab_score_ours,f1_at_nab_threshold,p_at_nab_threshold,r_at_nab_threshold,flagged_at_nab_threshold,f1_best,p_best,r_best,fp_best,found_best,flagged_best,f1_loco,us_per_point
+full_file,70.0,0.686,0.604,0.793,0.0005,0.686,0.604,0.793,63,92,0.0005,0.686,1248.4
+probation,43.9,0.427,0.355,0.534,0.0005,0.43,0.305,0.724,257,84,0.0012,0.386,6069.6
+probation_pad20,44.7,0.409,0.325,0.552,0.0006,0.43,0.305,0.724,257,84,0.0012,0.43,2641.6

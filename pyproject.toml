@@ -1,0 +1,9 @@
+[project]
+name = "sentinel"
+version = "1.0.0"
+description = "Lightweight, explainable streaming anomaly detector for NAB (Utkrishta 2026, Challenge 2)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

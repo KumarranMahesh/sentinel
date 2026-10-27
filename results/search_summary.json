@@ -1,0 +1,825 @@
+{
+  "stages": [
+    {
+      "stage": "stage1_detectors",
+      "n_configs": 108,
+      "best_hash": "b84795c131",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "events.theta_enter": 4.0
+      },
+      "best_all_f1": 0.4752257749572858,
+      "best_precision": 0.44594594594594594,
+      "best_recall": 0.5086206896551724,
+      "best_macro_cat_f1": 0.4525181486148651,
+      "loco_cv_f1": 0.3772336201191264,
+      "loco_cv_precision": 0.30612244897959184,
+      "loco_cv_recall": 0.49137931034482757,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "events.theta_enter": 4.0
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "events.theta_enter": 4.0
+        },
+        "realAWSCloudwatch": {
+          "residual.window": 128,
+          "shape.history": 1000,
+          "events.theta_enter": 5.0
+        },
+        "realAdExchange": {
+          "residual.window": 128,
+          "shape.m": 64,
+          "events.theta_enter": 5.0
+        },
+        "realKnownCause": {
+          "residual.window": 512,
+          "shape.m": 64,
+          "events.theta_enter": 5.0
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "events.theta_enter": 4.0
+        },
+        "realTweets": {
+          "residual.window": 512,
+          "change.k": 1.0,
+          "shape.history": 1000
+        }
+      }
+    },
+    {
+      "stage": "stage2a_threshold_smoothing",
+      "n_configs": 36,
+      "best_hash": "18b3f32091",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5
+      },
+      "best_all_f1": 0.5049914779644509,
+      "best_precision": 0.4857142857142857,
+      "best_recall": 0.5258620689655172,
+      "best_macro_cat_f1": 0.4953331336238342,
+      "loco_cv_f1": 0.4593924364538128,
+      "loco_cv_precision": 0.47107438016528924,
+      "loco_cv_recall": 0.4482758620689655,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 4.0
+        },
+        "realTweets": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 4.0
+        }
+      }
+    },
+    {
+      "stage": "stage2b_cooldown_maxlen",
+      "n_configs": 27,
+      "best_hash": "000a547bbc",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "best_all_f1": 0.5362187817832522,
+      "best_precision": 0.5140845070422535,
+      "best_recall": 0.5603448275862069,
+      "best_macro_cat_f1": 0.5510104270878174,
+      "loco_cv_f1": 0.5362187817832522,
+      "loco_cv_precision": 0.5140845070422535,
+      "loco_cv_recall": 0.5603448275862069,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTweets": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        }
+      }
+    },
+    {
+      "stage": "stage3a_fusion_calibration",
+      "n_configs": 24,
+      "best_hash": "000a547bbc",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "best_all_f1": 0.5362187817832522,
+      "best_precision": 0.5140845070422535,
+      "best_recall": 0.5603448275862069,
+      "best_macro_cat_f1": 0.5510104270878174,
+      "loco_cv_f1": 0.49979838709677415,
+      "loco_cv_precision": 0.44047619047619047,
+      "loco_cv_recall": 0.5775862068965517,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTweets": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "calibration.learn_in_cooldown": true,
+          "fusion.smooth": 5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        }
+      }
+    },
+    {
+      "stage": "stage3b_season_transform",
+      "n_configs": 18,
+      "best_hash": "000a547bbc",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "best_all_f1": 0.5362187817832522,
+      "best_precision": 0.5140845070422535,
+      "best_recall": 0.5603448275862069,
+      "best_macro_cat_f1": 0.5510104270878174,
+      "loco_cv_f1": 0.5169230769230769,
+      "loco_cv_precision": 0.4931506849315068,
+      "loco_cv_recall": 0.5431034482758621,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTraffic": {
+          "season.acf_min": 0.5,
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 4.0,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTweets": {
+          "season.acf_min": 0.5,
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        }
+      }
+    },
+    {
+      "stage": "stage3c_capped_cusum",
+      "n_configs": 9,
+      "best_hash": "000a547bbc",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "best_all_f1": 0.5362187817832522,
+      "best_precision": 0.5140845070422535,
+      "best_recall": 0.5603448275862069,
+      "best_macro_cat_f1": 0.5510104270878174,
+      "loco_cv_f1": 0.5362187817832522,
+      "loco_cv_precision": 0.5140845070422535,
+      "loco_cv_recall": 0.5603448275862069,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTweets": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        }
+      }
+    },
+    {
+      "stage": "stage3d_shape_detector",
+      "n_configs": 6,
+      "best_hash": "000a547bbc",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "best_all_f1": 0.5362187817832522,
+      "best_precision": 0.5140845070422535,
+      "best_recall": 0.5603448275862069,
+      "best_macro_cat_f1": 0.5510104270878174,
+      "loco_cv_f1": 0.5130293159609121,
+      "loco_cv_precision": 0.4861111111111111,
+      "loco_cv_recall": 0.5431034482758621,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.enabled": false,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 4.0,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTweets": {
+          "change.k": 1.0,
+          "shape.enabled": false,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        }
+      }
+    },
+    {
+      "stage": "stage3e_deseasonalized_change",
+      "n_configs": 3,
+      "best_hash": "000a547bbc",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "best_all_f1": 0.5362187817832522,
+      "best_precision": 0.5140845070422535,
+      "best_recall": 0.5603448275862069,
+      "best_macro_cat_f1": 0.5510104270878174,
+      "loco_cv_f1": 0.5362187817832522,
+      "loco_cv_precision": 0.5140845070422535,
+      "loco_cv_recall": 0.5603448275862069,
+      "loco_choices": {
+        "artificialNoAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "artificialWithAnomaly": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAWSCloudwatch": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realAdExchange": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realKnownCause": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTraffic": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        },
+        "realTweets": {
+          "change.k": 1.0,
+          "shape.m": 16,
+          "fusion.smooth": 5,
+          "events.theta_enter": 3.5,
+          "events.exit_offset": 0.5,
+          "events.cooldown": 100,
+          "events.max_len": 800
+        }
+      }
+    }
+  ],
+  "stage4_top5": [
+    {
+      "hash": "000a547bbc",
+      "changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "f1": 0.5362187817832522,
+      "precision": 0.5140845070422535,
+      "recall": 0.5603448275862069,
+      "fp": 69,
+      "macro_cat_f1": 0.5510104270878174,
+      "std_cat_f1": 0.08151605720303647
+    },
+    {
+      "hash": "7fdbe2174d",
+      "changes": {
+        "change.k": 1.0,
+        "shape.enabled": false,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "f1": 0.5328185328185329,
+      "precision": 0.4825174825174825,
+      "recall": 0.5948275862068966,
+      "fp": 74,
+      "macro_cat_f1": 0.5527032233224487,
+      "std_cat_f1": 0.10385842673982833
+    },
+    {
+      "hash": "b5bef53343",
+      "changes": {
+        "season.acf_min": 0.5,
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "f1": 0.532258064516129,
+      "precision": 0.5,
+      "recall": 0.5689655172413793,
+      "fp": 74,
+      "macro_cat_f1": 0.5488185016362349,
+      "std_cat_f1": 0.08125068842669837
+    },
+    {
+      "hash": "ca6c085789",
+      "changes": {
+        "season.acf_min": 0.2,
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "f1": 0.5284949988369388,
+      "precision": 0.5071428571428571,
+      "recall": 0.5517241379310345,
+      "fp": 69,
+      "macro_cat_f1": 0.5468690862521332,
+      "std_cat_f1": 0.08126269705355742
+    },
+    {
+      "hash": "ec413eca66",
+      "changes": {
+        "season.acf_min": 0.5,
+        "change.k": 1.0,
+        "shape.m": 16,
+        "fusion.smooth": 5,
+        "events.theta_enter": 4.0,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 100,
+        "events.max_len": 800
+      },
+      "f1": 0.52812291249165,
+      "precision": 0.5491803278688525,
+      "recall": 0.5086206896551724,
+      "fp": 55,
+      "macro_cat_f1": 0.5244111838788673,
+      "std_cat_f1": 0.12759347395527917
+    }
+  ],
+  "final": {
+    "hash": "b5bef53343",
+    "changes": {
+      "season.acf_min": 0.5,
+      "change.k": 1.0,
+      "shape.m": 16,
+      "fusion.smooth": 5,
+      "events.theta_enter": 3.5,
+      "events.exit_offset": 0.5,
+      "events.cooldown": 100,
+      "events.max_len": 800
+    },
+    "f1": 0.532258064516129,
+    "precision": 0.5,
+    "recall": 0.5689655172413793,
+    "fp": 74,
+    "macro_cat_f1": 0.5488185016362349,
+    "std_cat_f1": 0.08125068842669837,
+    "per_category_f1": {
+      "artificialWithAnomaly": 0.5333333333333333,
+      "realAWSCloudwatch": 0.5141776937618148,
+      "realAdExchange": 0.7128712871287128,
+      "realKnownCause": 0.4436229205175601,
+      "realTraffic": 0.5357142857142858,
+      "realTweets": 0.553191489361702
+    },
+    "median_norm_delay": 0.4992113545821494
+  },
+  "pool_loco_cv": {
+    "precision": 0.43373493975903615,
+    "recall": 0.5517241379310345,
+    "f1": 0.4856661045531197,
+    "tp_gt": 64,
+    "fp": 94,
+    "n_windows": 116,
+    "choices": {
+      "artificialNoAnomaly": "000a547bbc",
+      "artificialWithAnomaly": "000a547bbc",
+      "realAWSCloudwatch": "000a547bbc",
+      "realAdExchange": "000a547bbc",
+      "realKnownCause": "000a547bbc",
+      "realTraffic": "ec413eca66",
+      "realTweets": "e23a426511"
+    },
+    "per_category": {
+      "artificialNoAnomaly": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "artificialWithAnomaly": {
+        "precision": 0.4444444444444444,
+        "recall": 0.6666666666666666,
+        "f1": 0.5333333333333333
+      },
+      "realAWSCloudwatch": {
+        "precision": 0.47058823529411764,
+        "recall": 0.5666666666666667,
+        "f1": 0.5141776937618148
+      },
+      "realAdExchange": {
+        "precision": 0.8,
+        "recall": 0.6428571428571429,
+        "f1": 0.7128712871287128
+      },
+      "realKnownCause": {
+        "precision": 0.46875,
+        "recall": 0.42105263157894735,
+        "f1": 0.4436229205175601
+      },
+      "realTraffic": {
+        "precision": 0.6,
+        "recall": 0.21428571428571427,
+        "f1": 0.3157894736842105
+      },
+      "realTweets": {
+        "precision": 0.3466666666666667,
+        "recall": 0.696969696969697,
+        "f1": 0.46302748741773136
+      }
+    }
+  },
+  "pool_size": 218
+}

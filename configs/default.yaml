@@ -1,0 +1,58 @@
+# Sentinel default configuration (PLAN.md Section 7). One global config for all files.
+probation:
+  percent: 0.15          # NAB rule: min(floor(0.15 * N), 0.15 * 5000)
+  default_len: 750       # used when the stream length is unknown
+
+season:
+  acf_min: 0.3           # min autocorrelation (after detrending) to accept a day/week season
+
+transform:
+  log1p: false           # use log1p(x) if probation min >= 0 and skewness > skew_min
+  skew_min: 2.0
+
+residual:                # D1
+  enabled: true
+  window: 256            # W, rolling median window
+  ew_mad_rate: 0.02      # a, EW mean-absolute-residual rate
+  season_beta: 0.1       # EW rate of each seasonal bucket
+  season_min_count: 3
+
+change:                  # D2
+  enabled: true
+  slow_rate: 0.005       # a_s, slow EW baseline
+  k: 0.5                 # CUSUM drift (in sigma units)
+  k_v: 0.5               # variance CUSUM drift
+  h: 5.0                 # CUSUM normalizer
+  rebaseline_scale: false # re-estimate scale from recent points on re-baseline (tested: worse)
+  # deseasonalize: true  # optional (absent = off): feed D2 x minus D1's seasonal offset
+  # cap: 3               # optional (absent = no cap): cap C+, C-, V+ at cap*h so a finished
+  #                      # shift is forgotten fast. Kept out of the dict so config hashes stay stable.
+
+shape:                   # D3
+  enabled: true
+  m: 32                  # subsequence length
+  history: 2000          # H, stored past subsequences
+
+calibration:
+  buffer: 2000           # C, raw scores kept per detector
+  tail_q: 0.95           # tail-fit threshold quantile
+  min_exceed: 10         # use empirical p-value while this many buffer values exceed s
+  min_tail_n: 100        # need at least this many scores before using the tail fit
+  recalc_every: 50
+  learn_in_cooldown: false  # also learn score distribution during COOLDOWN
+
+fusion:
+  method: max_bonferroni # max_bonferroni | fisher
+  smooth: 3              # w_s
+  smooth_mode: mean      # mean | mean_or_peak (max of the mean and the single newest U - log10(w_s))
+
+events:
+  enabled: true          # false = plain threshold (ablation)
+  theta_enter: 3.0
+  exit_offset: 1.0       # theta_exit = theta_enter - exit_offset
+  cooldown: 200          # c
+  max_len: 400           # L_max
+  pause: true            # freeze learning while ANOMALOUS
+  rebaseline: true
+  rebaseline_r: 50
+  rebaseline_sigma: 3.0

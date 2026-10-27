@@ -1,0 +1,14 @@
+# Python 3.11 (tested 3.11.9, Windows 11). Exact versions used for all reported numbers.
+numpy==2.4.6
+pandas==3.1.0
+scipy==1.17.1
+scikit-learn==1.9.1
+sortedcontainers==2.4.0
+PyYAML==6.0.3
+joblib==1.6.0
+tqdm==4.70.1
+matplotlib==3.11.2
+plotly==7.1.0
+streamlit==1.66.1
+python-pptx==1.0.2
+pytest==9.1.1

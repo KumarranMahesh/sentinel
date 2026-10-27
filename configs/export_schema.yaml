@@ -1,0 +1,13 @@
+# Map Sentinel's prediction columns to another schema (PLAN.md 9.1, A7).
+# columns: output_name -> Sentinel column. Columns not listed are dropped.
+# label_values: optional recoding of the label column.
+columns:
+  timestamp: timestamp
+  value: value
+  anomaly_score: anomaly_score
+  label: label_int
+  is_anomaly: label
+label_values:
+  is_anomaly:
+    NORMAL: false
+    ANOMALOUS: true

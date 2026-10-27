@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+data/raw/
+data/processed/
+cache/
+predictions/per_file/
+predictions/all_predictions.csv
+*.log
+.streamlit/secrets.toml
+experiments/cache/
+.claude/
+slides/render/

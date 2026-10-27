@@ -1,0 +1,52 @@
+{
+  "machine": {
+    "os": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.9",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "logical_cpus": 16,
+    "ram_gb": 15.7
+  },
+  "config": "configs/final.yaml",
+  "points_scored": 332842,
+  "points_total": 365558,
+  "repeats": 3,
+  "us_per_point": {
+    "mean": 43.750587666220014,
+    "p50": 37.3,
+    "p95": 60.2,
+    "p99": 243.45900000000256,
+    "max": 2217.1
+  },
+  "corpus_seconds_median": 15.404862100025639,
+  "corpus_seconds_runs": [
+    14.747865799989086,
+    15.404862100025639,
+    15.505408499971963
+  ],
+  "seconds_per_file": {
+    "mean": 0.26547752931144025,
+    "max": 0.9670967999845743
+  },
+  "probation_replay_ms": {
+    "mean": 12.332525862068964,
+    "max": 26.2241
+  },
+  "component_us_per_point": {
+    "calibration.change": 4.037973573046671,
+    "calibration.residual": 5.014832863641007,
+    "calibration.shape": 4.109513823375656,
+    "change.score": 2.7330309876758343,
+    "change.update": 0.8559322441278444,
+    "residual.score": 2.43859939550898,
+    "residual.update": 3.290046628730749,
+    "shape.score": 19.55862331076006,
+    "shape.update": 1.2901998545856592
+  },
+  "component_note": "time inside each component per scored point (1 extra run with timers)",
+  "baseline_single_point_us": {
+    "iforest": 4899.223666666667,
+    "lof": 6435.547333333333,
+    "ocsvm": 384.55,
+    "rolling_z": 11.81
+  }
+}
