@@ -46,7 +46,7 @@ class SubspaceDetector(Detector):
         v = (v - v.mean()) / self.s
         tot = float(v @ v)
         proj = self.U.T @ v
-        self._spe = max(tot - float(proj @ proj), 0.0) / self.L
+        self._spe = float(np.float32(max(tot - float(proj @ proj), 0.0) / self.L))  # drop float noise
         self._frac = 1.0 - self._spe * self.L / tot if tot > 0 else 1.0
         return self._spe
 

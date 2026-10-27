@@ -305,6 +305,7 @@ def _lof_score(lw, lw_head, kwin, paa, R, R2, kdist, lrd, nn, excl, wbuf, fbuf, 
             acc += R[r, t] * fbuf[t]
         dd = R2[r] - 2.0 * acc + ff
         dd = math.sqrt(dd) if dd > 0.0 else 0.0
+        dd = np.rint(dd * 1e10) / 1e10                # = np.round(d, 10) in the reference
         if r == excl:
             dd = np.inf
         if cnt < nn or dd < nbd[cnt - 1]:
@@ -317,12 +318,13 @@ def _lof_score(lw, lw_head, kwin, paa, R, R2, kdist, lrd, nn, excl, wbuf, fbuf, 
             nbi[j] = r
             if cnt < nn:
                 cnt += 1
-    sl = 0.0
-    sr = 0.0
-    for q in range(nn):
-        sl += lrd[nbi[q]]
+    for q in range(nn):                               # reuse wbuf/fbuf as scratch, numpy order
         rr = kdist[nbi[q]]
-        sr += rr if rr > nbd[q] else nbd[q]
+        fbuf[q] = rr if rr > nbd[q] else nbd[q]
+    sr = _pairwise_sum(fbuf, 0, nn)
+    for q in range(nn):
+        fbuf[q] = lrd[nbi[q]]
+    sl = _pairwise_sum(fbuf, 0, nn)
     return (sl / nn) * (sr / nn + 1e-10), nbd[0]
 
 
@@ -348,7 +350,7 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
     lw_head = 0
     lw_n = 0
     lof_wbuf = np.zeros(max(lof_k, 1))
-    lof_fbuf = np.zeros(max(2 * lof_k, 2))
+    lof_fbuf = np.zeros(max(2 * lof_k, lof_nn, 2))
     lof_nbd = np.zeros(max(lof_nn, 1))
     lof_nbi = np.zeros(max(lof_nn, 1), np.int64)
     lof_val = 0.0
@@ -555,7 +557,7 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
                                 for t in range(L):
                                     acc += U[t, c] * ss_v[t]
                                 pr += acc * acc
-                            raw7 = max(tot - pr, 0.0) / L
+                            raw7 = np.float64(np.float32(max(tot - pr, 0.0) / L))
                             _cal_add(k_ss, raw7, cb, cs, cnk, cpos, csince, C)
                         if ss_n < L - 1:
                             ss_win[(ss_head + ss_n) % (L - 1)] = xq
@@ -676,7 +678,7 @@ def _kernel(secs, xs, P, fl, it, U, out_f, out_i, det_u, ev_i, ev_f, ev_prof, ev
                     for t in range(L):
                         acc += U[t, c] * ss_v[t]
                     pr += acc * acc
-                ss_spe = max(tot - pr, 0.0) / L
+                ss_spe = np.float64(np.float32(max(tot - pr, 0.0) / L))
                 ss_frac = 1.0 - ss_spe * L / tot if tot > 0 else 1.0
                 raws[k_ss] = ss_spe
             else:

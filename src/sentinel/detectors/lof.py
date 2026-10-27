@@ -70,12 +70,13 @@ class LofDetector(Detector):
         w = np.fromiter(self.win, dtype=np.float64, count=self.k)
         f = self._feat(w[None, :])[0]
         d = np.sqrt(np.maximum(self.R2 - 2.0 * (self.R @ f) + f @ f, 0.0))
+        d = np.round(d, 10)                 # deterministic ties (identical windows are common)
         row = i - (self.k - 1)
         if i < self.n_prob and row >= 0:                 # probation replay: no self-match
             hit = np.searchsorted(self.ref_rows, row)
             if hit < len(self.ref_rows) and self.ref_rows[hit] == row:
                 d[hit] = np.inf
-        nb = np.argpartition(d, self.nn - 1)[:self.nn]
+        nb = np.argsort(d, kind="stable")[:self.nn]  # ties -> lower reference row first
         reach = np.maximum(self.kdist[nb], d[nb])
         lof = float(self.lrd[nb].mean() * (reach.mean() + 1e-10))
         self._last = {"lof": lof, "nearest_distance": float(d[nb].min())}

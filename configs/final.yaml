@@ -1,5 +1,7 @@
-# Chosen by scripts/search.py (staged grid, objective = micro trigger-based event F1, Stage-4 stability rule).
-# config hash 7b89e5c198; changes vs default: {"change.k": 1.0, "change.deseasonalize": true, "shape.enabled": false, "shape.m": 16, "shape.history": 1000, "calibration.learn_in_cooldown": true, "fusion.smooth": 5, "events.theta_enter": 3.5, "events.exit_offset": 0.5, "events.cooldown": 400, "events.max_len": 200}
+# v3 final config (LOGBOOK L-0056). v2 (configs/v2_final.yaml) + D7 subspace (lag 32) + D4 LOF,
+# theta_enter 5.0. Chosen by the v3 adoption rule (L-0048) and tie-break (L-0055) among candidate
+# families validated with scripts/validate.py (results/validation/summary.csv):
+#   in-sample ET 0.541, theta-LOCO 0.482, time-split late 0.571 (v2: 0.479 / 0.479 / 0.527).
 probation:
   percent: 0.15
   default_len: 750
@@ -26,6 +28,10 @@ shape:
   enabled: false
   m: 16
   history: 1000
+lof:
+  enabled: true
+subspace:
+  enabled: true
 calibration:
   buffer: 2000
   tail_q: 0.95
@@ -39,7 +45,7 @@ fusion:
   smooth_mode: mean
 events:
   enabled: true
-  theta_enter: 3.5
+  theta_enter: 5.0
   exit_offset: 0.5
   cooldown: 400
   max_len: 200
