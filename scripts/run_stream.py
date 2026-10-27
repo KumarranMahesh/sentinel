@@ -21,7 +21,7 @@ import numpy as np  # noqa: E402
 
 from sentinel.config import load_config  # noqa: E402
 from sentinel.io import Series, probation_length, read_csv  # noqa: E402
-from sentinel.runner import predictions_frame, run_sentinel  # noqa: E402
+from sentinel.runner import predictions_frame, run_auto, run_sentinel  # noqa: E402
 
 
 def load_input(path, ts_col, val_col):
@@ -64,6 +64,9 @@ def main():
     ap.add_argument("--unknown-length", action="store_true")
     ap.add_argument("--timestamp-col", default="timestamp")
     ap.add_argument("--value-col", default="value")
+    ap.add_argument("--engine", default="python", choices=["auto", "python", "fast"],
+                    help="python = per-point streaming API with per-point timing; fast = compiled "
+                         "causal replay of the same algorithm (identical outputs)")
     args = ap.parse_args()
 
     cfg_path = args.config if Path(args.config).exists() else None
@@ -78,7 +81,10 @@ def main():
     series = Series(Path(args.input).name, ts, vals, [], [], p)
 
     t0 = time.perf_counter()
-    res = run_sentinel(series, cfg, timing=True)
+    if args.engine == "python":
+        res = run_sentinel(series, cfg, timing=True)
+    else:
+        res = run_auto(series, cfg, args.engine)
     wall = time.perf_counter() - t0
     df = predictions_frame(series, res)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +93,8 @@ def main():
         with open(args.events, "w") as f:
             for e in res["events"]:
                 f.write(json.dumps(e) + "\n")
-    us = res["t_ns"][p:] / 1000.0
+    us = (res["t_ns"][p:] / 1000.0 if res["t_ns"] is not None
+          else np.full(max(len(vals) - p, 1), wall * 1e6 / max(len(vals), 1)))
     print(json.dumps({
         "input": args.input, "rows": len(vals), "probation": p,
         "config": cfg_path or "configs/default.yaml",

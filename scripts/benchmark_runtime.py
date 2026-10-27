@@ -96,6 +96,31 @@ def run_corpus(corpus, cfg, components=False):
     return np.concatenate(per_point), per_file, np.array(replay), acc
 
 
+def fast_engine_cost(corpus, cfg, repeats=3):
+    """Compiled engine (sentinel/fast.py): whole-file causal replay, time per point including
+    per-file setup (probation statistics) and evidence assembly. First call compiles (cached)."""
+    try:
+        from sentinel.fast import run_fast, supports
+    except ImportError:
+        return {"available": False, "reason": "numba not installed"}
+    if not supports(cfg):
+        return {"available": False, "reason": "config not supported by the compiled engine"}
+    t0 = time.perf_counter()
+    run_fast(next(iter(corpus.values())), cfg)
+    first = time.perf_counter() - t0
+    n = sum(len(s) for s in corpus.values())
+    runs = []
+    for _ in range(repeats):
+        t0 = time.perf_counter()
+        for s in corpus.values():
+            run_fast(s, cfg)
+        runs.append(time.perf_counter() - t0)
+    med = sorted(runs)[len(runs) // 2]
+    return {"available": True, "corpus_seconds_median": med, "corpus_seconds_runs": runs,
+            "us_per_point_mean": med * 1e6 / n, "points_total": n,
+            "first_call_seconds_incl_compile_or_cache_load": first}
+
+
 def baseline_point_cost(corpus, n_calls=300):
     from sklearn.ensemble import IsolationForest
     from sklearn.neighbors import LocalOutlierFactor
@@ -188,6 +213,7 @@ def main():
                                 "max": float(med["replay_ms"].max())},
         "component_us_per_point": comp,
         "component_note": "time inside each component per scored point (1 extra run with timers)",
+        "fast_engine": fast_engine_cost(corpus, cfg, args.repeats),
         "baseline_single_point_us": baseline_point_cost(corpus),
         "memory": peak_memory(corpus, cfg),
     }

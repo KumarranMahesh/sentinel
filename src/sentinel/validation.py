@@ -41,10 +41,10 @@ def _corpus():
 
 
 def _triggers_one(name, cfg):
-    from .runner import run_sentinel
+    from .runner import run_auto
     s = _corpus()[name]
     t0 = time.perf_counter()
-    res = run_sentinel(s, cfg)
+    res = run_auto(s, cfg)                 # compiled engine when supported (identical output)
     trig = [a for a, _ in events_from_labels(res["label"], start=s.probation)]
     return name, trig, time.perf_counter() - t0
 

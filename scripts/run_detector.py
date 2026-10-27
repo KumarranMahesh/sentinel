@@ -21,12 +21,12 @@ import pandas as pd  # noqa: E402
 from sentinel.baselines import BASELINES, baseline_labels  # noqa: E402
 from sentinel.config import config_hash, load_config  # noqa: E402
 from sentinel.io import load_corpus  # noqa: E402
-from sentinel.runner import parallel_map, predictions_frame, run_sentinel  # noqa: E402
+from sentinel.runner import parallel_map, predictions_frame, run_auto  # noqa: E402
 
 
-def _run_one(series, detector, cfg, variant):
+def _run_one(series, detector, cfg, variant, engine="auto"):
     if detector == "sentinel":
-        res = run_sentinel(series, cfg)
+        res = run_auto(series, cfg, engine)
         return predictions_frame(series, res), res["events"]
     scores, lab = baseline_labels(detector, series, variant)
     df = pd.DataFrame({
@@ -48,12 +48,14 @@ def main():
     ap.add_argument("--config", default="configs/default.yaml")
     ap.add_argument("--out", default="predictions")
     ap.add_argument("--n-jobs", type=int, default=-1)
+    ap.add_argument("--engine", default="auto", choices=["auto", "python", "fast"],
+                    help="Sentinel only: compiled engine when available (identical outputs)")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
     corpus = load_corpus()
     t0 = time.time()
-    results = parallel_map(_run_one, [(s, args.detector, cfg, args.variant)
+    results = parallel_map(_run_one, [(s, args.detector, cfg, args.variant, args.engine)
                                       for s in corpus.values()], args.n_jobs)
     out = Path(args.out)
     frames, events = [], []

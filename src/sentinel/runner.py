@@ -19,6 +19,11 @@ def run_sentinel(series, cfg, timing=False, det_probation=None):
     told (default: NAB's rule, which needs the file length; see reports/final_audit_report.md).
     """
     p = series.probation if det_probation is None else det_probation
+    nn = cfg.get("neural", {})
+    if nn.get("enabled") and "{category}" in nn.get("weights", ""):
+        # NAB evaluation: score each file with the model trained without its category
+        from .config import deep_merge
+        cfg = deep_merge(cfg, {"neural": {"weights": nn["weights"].format(category=series.category)}})
     det = StreamingSentinel(cfg, probation_len=p)
     n = len(series)
     secs, vals = series.seconds, series.values
@@ -56,6 +61,27 @@ def run_sentinel(series, cfg, timing=False, det_probation=None):
         "detector_names": det.names, "events": events, "t_ns": t_ns,
         "season": det.season,
     }
+
+
+def fast_available(cfg):
+    try:
+        from .fast import supports
+    except ImportError:                     # numba not installed
+        return False
+    return supports(cfg)
+
+
+def run_auto(series, cfg, engine="auto", det_probation=None):
+    """engine: 'python' (reference, pipeline.py), 'fast' (compiled, sentinel/fast.py) or
+    'auto' (fast when installed and the config is supported). Outputs are identical."""
+    if engine != "python" and fast_available(cfg):
+        from .fast import run_fast
+        res = run_fast(series, cfg, det_probation=det_probation)
+        if res is not None:
+            return res
+    elif engine == "fast":
+        raise ValueError("compiled engine unavailable for this config (or numba not installed)")
+    return run_sentinel(series, cfg, det_probation=det_probation)
 
 
 def score_result(series, labels):
