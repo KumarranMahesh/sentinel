@@ -16,7 +16,8 @@ import numpy as np
 
 from .calibration import P99Calibrator, make_calibrator
 from .config import load_config
-from .detectors import ORDER, ChangeDetector, LofDetector, ResidualDetector, ShapeDetector
+from .detectors import (ORDER, ChangeDetector, ForecastDetector, JointDetector, NeuralDetector, LofDetector, ResidualDetector,
+                        ShapeDetector, ShiftDetector, SubspaceDetector)
 from .events import ANOMALOUS, COOLDOWN, NORMAL, PROBATION, EventMachine, PlainThreshold
 from .evidence import explanation, fmt_ts, round_floats
 from .fusion import FUSERS
@@ -95,6 +96,7 @@ class StreamingSentinel:
         self.event_id = 0
         self.season = {"mode": "none", "dt_seconds": None}
         self.log1p = False
+        self.tf = None
         self.dets, self.cals = [], []
         self.last = PointResult(0.0, 0.0, NORMAL, "none", None, PROBATION, (0.0,) * len(self.names))
 
@@ -117,7 +119,7 @@ class StreamingSentinel:
             self.last = self.last._replace(label=NORMAL, event_id=None)
             return self.last
         if self.log1p:
-            return self._step(i, sec, math.log1p(max(x, 0.0)), raw_x=x)
+            return self._step(i, sec, self._fwd(x), raw_x=x)
         return self._step(i, sec, x)
 
     def finish(self):
@@ -134,9 +136,20 @@ class StreamingSentinel:
         self.season = detect_season(secs, xs, c["season"]["acf_min"])
         self.dt = self.season["dt_seconds"]
         tr = c.get("transform", {})
-        self.log1p = bool(tr.get("log1p")) and xs.min() >= 0 and _skew(xs) > tr.get("skew_min", 2.0)
+        self.tf = None
+        if bool(tr.get("log1p")) and xs.min() >= 0 and _skew(xs) > tr.get("skew_min", 2.0):
+            self.tf = "log1p"
+            self._fwd = lambda v: math.log1p(max(v, 0.0))
+            self._inv = math.expm1
+        elif (tr.get("counts") == "anscombe" and xs.min() >= 0 and np.all(xs == np.round(xs))
+              and np.median(xs) <= tr.get("counts_max_median", 1e3)):
+            # count series (e.g. tweets per 5 min): variance-stabilising Anscombe transform
+            self.tf = "anscombe"
+            self._fwd = lambda v: 2.0 * math.sqrt(max(v, 0.0) + 0.375)
+            self._inv = lambda y: max(y, 0.0) ** 2 / 4.0 - 0.375
+        self.log1p = self.tf is not None             # True when a value transform is active
         if self.log1p:
-            xs = np.log1p(xs)
+            xs = np.array([self._fwd(v) for v in xs])
         floor = scale_floor(xs)
         med, rs = robust_stats(xs)
         rs = max(rs, floor)
@@ -150,8 +163,19 @@ class StreamingSentinel:
                 d = self.d2 = ChangeDetector(c["change"], med, rs, vmean, floor)
             elif name == "shape":
                 d = ShapeDetector(c["shape"], floor)
-            else:
+            elif name == "lof":
                 d = LofDetector(c["lof"], xs)
+            elif name == "shift":
+                d = ShiftDetector(c["shift"])
+            elif name == "forecast":
+                d = ForecastDetector(c["forecast"], med, rs, floor)
+            elif name == "neural":
+                from .config import ROOT
+                d = NeuralDetector(c["neural"], ROOT / c["neural"]["weights"])
+            elif name == "joint":
+                d = JointDetector(c["joint"], xs, rs)
+            else:
+                d = SubspaceDetector(c["subspace"], xs, rs)
             self.dets.append(d)
             self.cals.append(make_calibrator(c["calibration"]))
         if (c["change"].get("deseasonalize") and self.d1 is not None and self.d2 is not None
@@ -236,14 +260,21 @@ class StreamingSentinel:
                 e = evid["residual"]
                 e["observed"] = raw_x
                 for key in ("expected", "level"):
-                    e[key] = math.expm1(e[key])
+                    e[key] = self._inv(e[key])
                 e["seasonal_offset"] = e["expected"] - e["level"]
                 e["residual"] = raw_x - e["expected"]
             if "change" in evid:
                 e = evid["change"]
                 for key in ("baseline_mean", "recent_mean"):
                     if e[key] is not None:
-                        e[key] = math.expm1(e[key])
+                        e[key] = self._inv(e[key])
+            if "shift" in evid and "recent_median" in evid["shift"]:
+                e = evid["shift"]
+                for key in ("recent_median", "reference_median"):
+                    e[key] = self._inv(e[key])
+            if "forecast" in evid and "expected" in evid["forecast"]:
+                evid["forecast"]["observed"] = raw_x
+                evid["forecast"]["expected"] = self._inv(evid["forecast"]["expected"])
         if "shape" in evid:
             cal = self.cals[self.names.index("shape")]
             evid["shape"]["typical_p95"] = cal.typical_p95()
@@ -263,7 +294,7 @@ class StreamingSentinel:
             "detector_surprise": dsur,
             "evidence": evid,
             "context": {"season_mode": self.season["mode"], "data_gap_before": bool(gap),
-                        "transform": "log1p" if self.log1p else "none"},
+                        "transform": self.tf or "none"},
             "explanation": explanation(dsur, evid),
             "peak_surprise": 0.0,
             "trace": [],

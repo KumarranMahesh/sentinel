@@ -113,3 +113,20 @@ def test_pause_freezes_calibration_during_event(rng):
     ev = [i for i, st in enumerate(states) if st == "EVENT"]
     assert ev, "expected an event"
     assert sizes[ev[-1]] == sizes[ev[0] - 1]
+
+
+@pytest.mark.parametrize("det", ["lof", "shift", "joint", "subspace", "forecast"])
+def test_optional_detectors_future_perturbation(det, rng):
+    """Every optional detector (D4-D7) is causal: rewriting the future leaves the past alone."""
+    x = 10 + np.sin(np.arange(4000) / 40) + 0.3 * rng.standard_normal(4000)
+    x[2500:2540] += 4
+    s = make_series(x)
+    over = {det: {"enabled": True}}
+    if det == "lof":
+        over["lof"].update({"ref_max": 200, "paa": 4})
+    cfg = load_config(overrides=over)
+    base = run_sentinel(s, cfg)
+    assert det in base["detector_names"]
+    for t in (900, 2510):
+        for xp in _perturbations(x, t, rng)[:3]:
+            _assert_same_until(base, run_sentinel(_with_values(s, xp), cfg), t)

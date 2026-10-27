@@ -9,6 +9,8 @@ season:
 transform:
   log1p: false           # use log1p(x) if probation min >= 0 and skewness > skew_min
   skew_min: 2.0
+  # counts: anscombe     # optional: 2*sqrt(x + 3/8) when probation values are non-negative
+  # counts_max_median: 1000  # integers with median <= this (counts, not byte totals)
 
 residual:                # D1
   enabled: true
@@ -37,6 +39,36 @@ lof:                     # D4, optional (off by default)
   enabled: false
   window: 16             # feature window (values + differences), as the LOF baseline
   neighbors: 20
+  # ref_max: 200         # optional: evenly spaced subset of probation rows as reference
+  # paa: 4               # optional: average the window into this many segments first
+
+shift:                   # D5, optional: two-sample KS, last `window` vs the `reference` before
+  enabled: false
+  window: 48
+  reference: 500
+  min_reference: 100
+  step: 4                # recompute every `step` points
+
+joint:                   # D6, optional: robust Hotelling T^2 of level/shift/spread/jump features
+  enabled: false
+  support: 0.75          # MCD support fraction
+
+subspace:                # D7, optional: SSA / PCA residual of the newest lag vector
+  enabled: false
+  lag: 32
+  var: 0.9               # components kept: smallest r explaining this share of variance
+  r_max: 8
+
+forecast:                # D8, optional: online AR(p) residual (recursive least squares)
+  enabled: false
+  order: 4
+  forget: 0.999          # RLS forgetting factor
+  ew_rate: 0.02          # EW mean-absolute forecast error rate
+
+neural:                  # D9, optional: MLP forecaster trained by scripts/train_neural.py
+  enabled: false
+  weights: models/neural_wo_{category}.npz   # NAB: model that never saw the file's category
+                                             # (new files: models/neural_all.npz)
 
 calibration:
   buffer: 2000           # C, raw scores kept per detector

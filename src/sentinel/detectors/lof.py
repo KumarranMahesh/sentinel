@@ -32,8 +32,13 @@ class LofDetector(Detector):
         if len(v) < self.k + 3:
             return
         x = (v - self.lo) / self.span
-        w = sliding_window_view(x, self.k)
-        R = np.hstack([w, np.diff(w, axis=1)])
+        self.paa = cfg.get("paa")
+        R = self._feat(sliding_window_view(x, self.k))
+        ref_max = cfg.get("ref_max")
+        self.ref_rows = np.arange(len(R))
+        if ref_max and len(R) > ref_max:            # cheaper: evenly spaced reference rows
+            self.ref_rows = np.unique(np.linspace(0, len(R) - 1, int(ref_max)).astype(int))
+            R = R[self.ref_rows]
         n = len(R)
         self.nn = min(int(cfg["neighbors"]), n - 1)
         if self.nn < 2:
@@ -48,6 +53,12 @@ class LofDetector(Detector):
         self.lrd = 1.0 / (reach.mean(axis=1) + 1e-10)
         self.ok = True
 
+    def _feat(self, w):
+        """Rows of windows -> [values, first differences]; with `paa`, segment means first."""
+        if self.paa:
+            w = w.reshape(len(w), int(self.paa), -1).mean(axis=2)
+        return np.hstack([w, np.diff(w, axis=1)])
+
     @property
     def ready(self):
         return self.ok
@@ -57,11 +68,13 @@ class LofDetector(Detector):
         if not self.ok or len(self.win) < self.k:
             return 0.0
         w = np.fromiter(self.win, dtype=np.float64, count=self.k)
-        f = np.concatenate([w, np.diff(w)])
+        f = self._feat(w[None, :])[0]
         d = np.sqrt(np.maximum(self.R2 - 2.0 * (self.R @ f) + f @ f, 0.0))
         row = i - (self.k - 1)
-        if i < self.n_prob and 0 <= row < len(d):        # probation replay: no self-match
-            d[row] = np.inf
+        if i < self.n_prob and row >= 0:                 # probation replay: no self-match
+            hit = np.searchsorted(self.ref_rows, row)
+            if hit < len(self.ref_rows) and self.ref_rows[hit] == row:
+                d[hit] = np.inf
         nb = np.argpartition(d, self.nn - 1)[:self.nn]
         reach = np.maximum(self.kdist[nb], d[nb])
         lof = float(self.lrd[nb].mean() * (reach.mean() + 1e-10))

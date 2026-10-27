@@ -13,3 +13,4 @@ predictions/all_predictions.csv
 experiments/cache/
 .claude/
 slides/render/
+experiments/cache_v3/

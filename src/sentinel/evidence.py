@@ -44,6 +44,33 @@ def sentence(name, ev):
     if name == "lof":
         return (f"Unusual recent pattern: local outlier factor {ev['lof']:.2f} vs the learning period "
                 f"(about 1 = typical) over the last {ev['window']} points.")
+    if name == "shift":
+        if "recent_median" not in ev:
+            return f"Distribution shift (KS D {ev['ks_d']:.2f})."
+        return (f"Distribution shift: the last {ev['window']} values differ from the "
+                f"{ev['reference']} before them (KS D {ev['ks_d']:.2f}); median "
+                f"{_num(ev['recent_median'])} vs {_num(ev['reference_median'])}, spread (IQR) "
+                f"{_num(ev['recent_iqr'])} vs {_num(ev['reference_iqr'])}.")
+    if name == "joint":
+        parts = {k: ev[k] for k in ("level", "shift", "spread", "jump") if k in ev}
+        top = sorted(parts, key=lambda k: abs(parts[k] - ev.get("typical", {}).get(k, 0.0)),
+                     reverse=True)[:2]
+        desc = ", ".join(f"{k} {parts[k]:+.2f}" for k in top)
+        return f"Several features off at once (Hotelling T² {ev['t2']:.1f}): {desc}."
+    if name == "subspace":
+        return (f"Pattern break: only {100 * ev['explained_fraction']:.0f}% of the last "
+                f"{ev['lag']} values' shape is explained by the {ev['components']} usual "
+                f"patterns of the learning period.")
+    if name == "forecast":
+        if "expected" not in ev:
+            return f"Unexpected next value (AR residual {ev['z']:+.1f} sigma)."
+        return (f"Unexpected move: {_num(ev['observed'])} where its recent path predicted "
+                f"{_num(ev['expected'])} ({abs(ev['z']):.1f}x the usual forecast error).")
+    if name == "neural":
+        if "expected" not in ev:
+            return "Unexpected value for the learned forecaster."
+        return (f"Learned forecaster expected {_num(ev['expected'])} (typical error "
+                f"{_num(ev['typical_error'])}), got {_num(ev['observed'])}.")
     return "Anomalous."
 
 
