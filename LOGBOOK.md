@@ -289,3 +289,9 @@ evidence are collected in `reports/final_audit_report.md`.
 **L-0054** · 2026-10-27T16:35+05:30 · Claude Opus 5.5 · CODE / EXP · D9 neural forecaster
 - Files: `src/sentinel/neural.py`, `detectors/neural.py`, `scripts/train_neural.py`, `requirements-train.txt`, `models/neural_*.npz`, `results/neural_training.json`, `docs/GPU_TRAINING.md`.
 - MLP 68→64→32→2 (last 64 values normalised by their own median/robust scale + hour/weekday sin-cos) → Laplace location/scale of the next value; raw score = |error| / scale. Self-supervised; labels never read. 7 held-out-category models (`neural_wo_<category>`; NAB files are scored by the model that never saw their category) + 1 on all files for new data. Trained on this container's CPU (no GPU reachable): 20 epochs, 22 min for all 8. NumPy inference = PyTorch to 5e−12.
+
+**L-0055** · 2026-10-27T17:05+05:30 · Claude Opus 5.5 · DECISION · wide θ grid; tie-break among passing candidates (written before the LOF/combination/forecast/count/neural results)
+- Every first-round winner sat at θ = 4.5, the top of the grid, so all families are re-run with θ ∈ {3.5, 4.0, 4.5, 5.0, 5.5} (base family re-run on the same grid: in-sample 0.479, θ-LOCO 0.479, late 0.527, unchanged).
+- Results in so far: subspace with lag ∈ {16, 32, 64} tuned → θ-LOCO 0.476 (folds pick lag 64, which overfits) → rejected; joint → 0.541 / 0.485 / 0.527 (late tie) → rejected.
+- Because the lag knob was the weak point, the subspace detector is also evaluated at its pre-set default lag 32 only (`w_subspace32`). This run was chosen after seeing the lag-grid result; it is reported as such.
+- Tie-break if several candidates pass L-0048: highest time-split late ET, then θ-LOCO ET, then lower µs/point. The final θ is the in-sample best of the chosen family (as for v2), and the held-out numbers quoted are the protocol numbers, not the in-sample one.
