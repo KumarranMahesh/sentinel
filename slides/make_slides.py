@@ -97,9 +97,10 @@ def pick_evidence():
             good.append(max(cand, key=lambda e: e["peak_surprise"]))
     if len(good) < 2:
         good += sorted([e for e in tps if e not in good], key=lambda e: -e["peak_surprise"])[:2 - len(good)]
-    bad = next((e for e in fps if e["file"] == "artificialWithAnomaly/art_daily_jumpsdown.csv"),
+    bad = next((e for e in fps if e["file"] == "artificialNoAnomaly/art_noisy.csv"),
                max(fps, key=lambda e: e["peak_surprise"]) if fps else None)
-    return {"tp": good, "fp": bad}
+    n_free = sum(e["file"].startswith("artificialNoAnomaly/") for e in fps)
+    return {"tp": good, "fp": bad, "n_fp_anomaly_free": n_free}
 
 
 # ------------------------------------------------------------------ helpers
@@ -581,6 +582,18 @@ def s7_evaluation(prs, d):
              "runs into it is a false alert and the window counts as missed, exactly as NAB scores it.")
 
 
+def pub_note():
+    """Published NAB detectors scored with ET at their own NAB threshold (results/nab_published.csv)."""
+    p = RES / "nab_published.csv"
+    if not p.exists():
+        return ""
+    pub = pd.read_csv(p).set_index("detector")
+    names = {"contextOSE": "CAD OSE", "numenta": "HTM", "ARTime": "ARTime"}
+    parts = [f"{v} {pub.loc[k, 'et_f1_at_nab_threshold']:.2f}" for k, v in names.items() if k in pub.index]
+    return ("Published NAB detectors, ET F1 at their NAB threshold: " + ", ".join(parts) +
+            "; not causal (NAB gives each file's min/max in advance) and thresholds tuned on all labels.")
+
+
 def s8_results(prs, d):
     s = prs.slides.add_slide(prs.slide_layouts[6])
     m, srch, base, rt = d["m"]["overall"], d["search"], d["base"], d["rt"]
@@ -613,9 +626,8 @@ def s8_results(prs, d):
           highlight_rows=(1,))
     text(s, 0.6, 2.95 + 0.4 * len(rows) + 0.1, 12.1, 0.9,
          "Best variant of each baseline (full table: results/baselines_comparison.csv). Held-out: Sentinel = nested "
-         "LOCO; baselines = θ chosen on 6 categories. NAB = NAB standard score with every ANOMALOUS row as a "
-         "detection, at our operating point; NAB's scoreboard (ARTime 74.9, HTM ~70, CAD OSE 69.9) tunes one "
-         "threshold per detector and gives each file's min/max in advance, so it is not comparable.",
+         "LOCO; baselines = θ chosen on 6 categories. NAB = NAB standard score, every ANOMALOUS row a detection "
+         "(checked against NAB's own code). " + pub_note(),
          size=10.5, color=MUTED)
     footer(s, 8)
     notes(s, "The fairest comparison is the row where a baseline gets our calibration and event logic with its "
@@ -630,9 +642,11 @@ def s9_demo(prs, d):
     picture(s, shot if shot.exists() else FIG / "examples_tp.png", 0.6, 1.65, h=5.2)
     ev = d["evidence"]
     cards = [(e, "Correct alert", BLUE, None) for e in ev["tp"]]
-    cards.append((ev["fp"], "False alert: why", RED,
-                  "After the real anomaly the change detector re-baselined onto the night-time level, "
-                  "so the next normal daily rise looked like a shift."))
+    fp_note = ("This file is pure noise with no anomaly (NAB artificialNoAnomaly): the variance CUSUM "
+               f"crossed θ on a chance run of wide swings. False alerts on the 5 anomaly-free files: {ev['n_fp_anomaly_free']}."
+               if ev["fp"]["file"] == "artificialNoAnomaly/art_noisy.csv" else
+               "Triggered outside every labelled window (see figures/examples_fp.png for context).")
+    cards.append((ev["fp"], "False alert: why", RED, fp_note))
     y = 1.65
     for e, tag, col, note in cards:
         hgt = 1.35 if note is None else 1.85

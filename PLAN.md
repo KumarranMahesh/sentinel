@@ -826,3 +826,6 @@ Where v2.0 differs from the sections above, Section 21 wins. Every row has a LOG
 | 14 T3.5 | prefix-truncation causality test | + future-perturbation tests, label/window independence, prediction-time convention, calibration frozen during events, adversarial metric tests | stronger leakage evidence [L-0044] |
 | 13 | `screenshot_demo.py` needs `websockets` (not in requirements) | Playwright-based, optional | missing dependency |
 
+| 4.4 (new) | — | metric validated before held-out runs: `scripts/nab_crosscheck.py` (our NAB = NAB's `sweeper.py` to 1e−10), `scripts/metric_audit.py` with a textbook causal detector and label-derived timing references; ET's coarse timing (no earliness reward inside a window) is documented and delay + NAB are always reported beside it | user priority: validate the metric before tuning [L-0045] |
+| 11.3 (new) | — | final config = Stage-4 stability rule on the v2 search (`7b89e5c198`); improvement over v1 tested with a paired file bootstrap on ET (`scripts/compare_runs.py`): +0.035, CI −0.037…+0.113, not significant even in-sample | no claim of improvement without the same metric and protocol [L-0046] |
+| 3 A4 | probation length given to the detector | unchanged, but its effect is measured (`scripts/probation_sensitivity.py`: fixed 750 → ET 0.474 vs 0.479) | NAB's rule needs the file length [L-0046] |

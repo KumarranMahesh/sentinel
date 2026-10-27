@@ -1,0 +1,195 @@
+{
+  "held_out_category": "artificialNoAnomaly",
+  "chosen_hash": "7b89e5c198",
+  "cache_prefix": "v2_8c0d49f915f8_8b0dfbc1a0",
+  "changes": {
+    "change.k": 1.0,
+    "change.deseasonalize": true,
+    "shape.enabled": false,
+    "shape.m": 16,
+    "shape.history": 1000,
+    "calibration.learn_in_cooldown": true,
+    "fusion.smooth": 5,
+    "events.theta_enter": 3.5,
+    "events.exit_offset": 0.5,
+    "events.cooldown": 400,
+    "events.max_len": 200
+  },
+  "train_et_f1": 0.48148148148148145,
+  "pool_size": 231,
+  "stages": [
+    {
+      "stage": "stage1_detectors",
+      "n_configs": 108,
+      "best_hash": "c746de2da8",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "events.theta_enter": 4.0
+      },
+      "best_et_f1": 0.4206349206349207,
+      "best_et_precision": 0.3897058823529412,
+      "best_et_recall": 0.45689655172413796,
+      "best_e1_f1": 0.4257338980575435
+    },
+    {
+      "stage": "stage2a_threshold_smoothing",
+      "n_configs": 36,
+      "best_hash": "a5c3b8ba59",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5
+      },
+      "best_et_f1": 0.4541832669322709,
+      "best_et_precision": 0.4222222222222222,
+      "best_et_recall": 0.49137931034482757,
+      "best_e1_f1": 0.4701636808867122
+    },
+    {
+      "stage": "stage2b_cooldown_maxlen",
+      "n_configs": 36,
+      "best_hash": "8cd498ab61",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "fusion.smooth": 5,
+        "events.theta_enter": 4.0,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 400,
+        "events.max_len": 200
+      },
+      "best_et_f1": 0.4660194174757281,
+      "best_et_precision": 0.5333333333333333,
+      "best_et_recall": 0.41379310344827586,
+      "best_e1_f1": 0.4679665738161559
+    },
+    {
+      "stage": "stage3a_fusion_calibration",
+      "n_configs": 24,
+      "best_hash": "b3e649adb7",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "calibration.learn_in_cooldown": true,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 400,
+        "events.max_len": 200
+      },
+      "best_et_f1": 0.4722222222222222,
+      "best_et_precision": 0.51,
+      "best_et_recall": 0.4396551724137931,
+      "best_e1_f1": 0.4742913350621479
+    },
+    {
+      "stage": "stage3b_season_transform",
+      "n_configs": 18,
+      "best_hash": "b3e649adb7",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "calibration.learn_in_cooldown": true,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 400,
+        "events.max_len": 200
+      },
+      "best_et_f1": 0.4722222222222222,
+      "best_et_precision": 0.51,
+      "best_et_recall": 0.4396551724137931,
+      "best_e1_f1": 0.4742913350621479
+    },
+    {
+      "stage": "stage3c_capped_cusum",
+      "n_configs": 9,
+      "best_hash": "b3e649adb7",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "calibration.learn_in_cooldown": true,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 400,
+        "events.max_len": 200
+      },
+      "best_et_f1": 0.4722222222222222,
+      "best_et_precision": 0.51,
+      "best_et_recall": 0.4396551724137931,
+      "best_e1_f1": 0.4742913350621479
+    },
+    {
+      "stage": "stage3d_shape_detector",
+      "n_configs": 6,
+      "best_hash": "8ace10a44f",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.enabled": false,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "calibration.learn_in_cooldown": true,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 400,
+        "events.max_len": 200
+      },
+      "best_et_f1": 0.4907407407407408,
+      "best_et_precision": 0.53,
+      "best_et_recall": 0.45689655172413796,
+      "best_e1_f1": 0.49272617715417066
+    },
+    {
+      "stage": "stage3e_deseasonalized_change",
+      "n_configs": 3,
+      "best_hash": "8ace10a44f",
+      "best_changes": {
+        "change.k": 1.0,
+        "shape.enabled": false,
+        "shape.m": 16,
+        "shape.history": 1000,
+        "calibration.learn_in_cooldown": true,
+        "fusion.smooth": 5,
+        "events.theta_enter": 3.5,
+        "events.exit_offset": 0.5,
+        "events.cooldown": 400,
+        "events.max_len": 200
+      },
+      "best_et_f1": 0.4907407407407408,
+      "best_et_precision": 0.53,
+      "best_et_recall": 0.45689655172413796,
+      "best_e1_f1": 0.49272617715417066
+    }
+  ],
+  "held_out": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "tp": 0,
+    "fp": 1,
+    "n_windows": 0,
+    "e1": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "per_category": {
+      "artificialNoAnomaly": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    }
+  }
+}
